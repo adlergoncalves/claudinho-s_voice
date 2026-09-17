@@ -6,7 +6,9 @@ qualquer import nosso:
 
 1. achar a raiz do plugin (é o pai desta pasta) e pô-la no caminho de busca;
 2. usar os pacotes do ``.venv`` se houver um, para não exigir instalação global;
-3. preparar o ambiente na primeira execução, se ainda não existir.
+3. sair calado se o ambiente ainda não existir — quem prepara é o ``cvoice
+   ativar``, síncrono e falante; um hook mudo instalando coisas em segundo
+   plano concorreria com ele no mesmo ``.venv`` e falharia sem deixar rastro.
 
 Regra de ouro herdada dos hooks: **nunca** falhar de forma barulhenta e nunca
 demorar. Qualquer problema aqui vira saída silenciosa — um leitor de voz que
@@ -38,42 +40,6 @@ def _preparar_caminho() -> None:
         sys.path.insert(0, str(libs))
 
 
-MARCA_DE_PREPARO = RAIZ / ".preparando"
-
-
-def _preparar_em_segundo_plano() -> None:
-    """Dispara a preparação da instalação e devolve o controle na hora.
-
-    Numa instalação nova não há ambiente virtual nem pesos de voz, e criar os
-    dois leva minutos. O hook não pode esperar por isso — ele roda a cada
-    ferramenta e precisa devolver em milissegundos. Então solta o preparo em
-    segundo plano e sai: esta leitura se perde, as próximas funcionam.
-
-    A marca no disco evita que cada hook do turno dispare um preparo novo.
-    """
-    if MARCA_DE_PREPARO.exists():
-        return
-    try:
-        import subprocess
-        import time
-
-        MARCA_DE_PREPARO.write_text(str(time.time()), encoding="utf-8")
-        criacao = 0
-        if sys.platform == "win32":
-            criacao = subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS
-        subprocess.Popen(
-            [sys.executable, "-m", "claudinho_voice.preparar_ambiente"],
-            cwd=str(RAIZ),
-            creationflags=criacao,
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            close_fds=True,
-        )
-    except Exception:
-        pass
-
-
 HOOKS = {
     "stop": "claudinho_voice.hook",
     "prompt": "claudinho_voice.hook_prompt",
@@ -81,8 +47,26 @@ HOOKS = {
 }
 
 
+def _preparar_agora() -> int:
+    """Prepara a instalação aqui e agora, mostrando o progresso.
+
+    É o único ponto de entrada que funciona antes de existir um venv: o
+    ``cvoice`` só nasce depois do preparo, e quem instala o plugin precisa de
+    alguma porta para bater na primeira vez.
+    """
+    _preparar_caminho()
+    from claudinho_voice.preparar_ambiente import preparar
+
+    return 0 if preparar() else 1
+
+
 def main() -> int:
     qual = sys.argv[1] if len(sys.argv) > 1 else ""
+
+    # preparo explícito: síncrono e falante, ao contrário dos hooks
+    if qual == "preparar":
+        return _preparar_agora()
+
     modulo = HOOKS.get(qual)
     if not modulo:
         return 0
@@ -90,9 +74,9 @@ def main() -> int:
     try:
         _preparar_caminho()
 
-        # instalação nova: sem venv, nada do projeto importa. Prepara e sai.
+        # instalação nova: sem venv, nada do projeto importa. Sai calado — o
+        # preparo é do `cvoice ativar`, nunca daqui (ver docstring do módulo).
         if not (RAIZ / ".venv" / "pyvenv.cfg").exists():
-            _preparar_em_segundo_plano()
             return 0
 
         import importlib

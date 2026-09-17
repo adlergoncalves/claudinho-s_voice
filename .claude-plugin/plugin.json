@@ -1,7 +1,7 @@
 {
   "name": "claudinho-voice",
   "displayName": "Claudinho's Voice",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Leitor por voz para o Claude Code. Roda 100% local, em pt-BR, sem nuvem e sem custo por uso.",
   "license": "MIT",
   "keywords": ["tts", "voz", "acessibilidade", "pt-br", "local"],

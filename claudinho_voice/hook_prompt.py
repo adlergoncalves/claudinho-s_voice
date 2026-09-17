@@ -76,14 +76,22 @@ def main_com_entrada(entrada: dict) -> int:
         transcript = str(entrada.get("transcript_path") or "")
         session_id = Path(transcript).stem if transcript else ""
 
+    # O rastro entra ANTES de saber se o modo voz está ligado, por um motivo
+    # só: é a única prova de que o Claude Code carregou os hooks desta sessão.
+    # Quem instala o plugin com a janela já aberta liga a voz e não ouve nada;
+    # `cvoice ativar` procura esta linha para separar "hook não carregou" de
+    # "log recém-criado" — e no primeiro `ativar` o modo voz ainda está
+    # desligado, então registrar só depois do gate não deixaria prova nenhuma.
+    if session_id:
+        from .hook import _registrar
+
+        _registrar("prompt", f"sessao {session_id[:8]}")
+
     from .config import sessao_ligada
 
     if not sessao_ligada(session_id):
         return 0
 
-    from .hook import _registrar
-
-    _registrar("prompt", f"sessao {session_id[:8]}")
     _interromper_fala()
 
     # zera o relógio do turno: o hook de ferramenta usa isto para saber há

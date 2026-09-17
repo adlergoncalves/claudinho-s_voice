@@ -322,4 +322,21 @@ def abrir(sempre_no_topo: bool = True) -> None:
 if __name__ == "__main__":
     # quem chama é o lancar-painel.vbs, pelo wscript: ele já entra em pythonw
     # com a janela escondida, então aqui não há console a evitar.
-    abrir()
+    #
+    # E é justamente por isso que a falha vai para arquivo: sem console, um
+    # ``import webview`` que falha não deixa rastro nenhum — a janela não abre,
+    # nenhum erro aparece, e quem for diagnosticar isso começa do zero.
+    try:
+        abrir()
+    except Exception:
+        import traceback
+
+        from .config import PASTA_USUARIO
+
+        try:
+            PASTA_USUARIO.mkdir(parents=True, exist_ok=True)
+            with open(PASTA_USUARIO / "painel.log", "a", encoding="utf-8") as arquivo:
+                arquivo.write(traceback.format_exc() + chr(10))
+        except OSError:
+            pass
+        raise

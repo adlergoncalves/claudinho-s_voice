@@ -7,6 +7,7 @@ precisa saber que existe um serviço.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import time
@@ -24,6 +25,23 @@ from .config import (
     sessao_ligada,
     sessoes_ligadas,
 )
+
+def _saida_em_utf8() -> None:
+    """Faz o console do Windows aceitar acento.
+
+    O stdout do Python no Windows nasce em cp1252, e toda mensagem nossa é em
+    português: sem isto a saída vira "auto ligado nesta sess?o". É cosmético,
+    mas quem está justamente depurando a leitura de texto em português não
+    precisa desse susto.
+    """
+    for fluxo in (sys.stdout, sys.stderr):
+        try:
+            fluxo.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, OSError):
+            pass
+
+
+_saida_em_utf8()
 
 app = typer.Typer(
     add_completion=False,
@@ -168,6 +186,100 @@ def preparar() -> None:
         raise typer.Exit(code=1)
 
 
+def _hook_carregado(sessao: str) -> bool:
+    """O Claude Code desta sessão carregou os hooks do plugin?
+
+    O ``hooks.json`` do plugin é lido **na inicialização** do Claude Code. Quem
+    instala o plugin com a janela já aberta liga a voz, vê tudo indicar sucesso
+    — sessão marcada, serviço no ar — e não ouve nada, porque o hook que lê as
+    respostas nunca é chamado.
+
+    A prova é a marca que o hook de prompt deixa a cada mensagem, com o id da
+    sessão: a mensagem que disparou este comando já passou por ele. Procurar
+    pelo id, e não por "log recente", é o que separa "hook não carregou" de
+    "log recém-criado" — numa instalação nova o log nasce vazio e o hook está
+    lá; com a heurística de tempo o aviso gritaria em toda primeira execução.
+    """
+    from .config import PASTA_USUARIO
+
+    log = PASTA_USUARIO / "hook.log"
+    if not log.exists():
+        return False
+    marca = f"sessao {sessao[:8]}"
+    try:
+        # a linha desta sessão acabou de ser escrita: está no fim do arquivo
+        with log.open("rb") as arquivo:
+            arquivo.seek(max(0, log.stat().st_size - 200_000))
+            return marca in arquivo.read().decode("utf-8", errors="replace")
+    except OSError:
+        return False
+
+
+@app.command()
+def ativar(
+    sem_painel: bool = typer.Option(False, "--sem-painel", help="não abre a janela de controle"),
+) -> None:
+    """Liga a voz: prepara o que falta, sobe o serviço e abre o painel.
+
+    É o comando da primeira vez e o de todo dia — a diferença é só quanto tempo
+    demora. Numa instalação nova ele cria o ambiente, instala as dependências e
+    baixa a voz; numa já pronta, ele apenas liga. A voz e a janela sobem juntas:
+    nunca uma sem a outra.
+    """
+    from .preparar_ambiente import preparar as _preparar
+    from .preparar_ambiente import tudo_pronto
+
+    # No fluxo real quem prepara é o lançador (bin/cvoice.cmd), ANTES deste
+    # executável existir: quando o cli nasce, a instalação já está pronta e
+    # tudo_pronto() não distingue "primeira vez" de "dia a dia". O lançador
+    # avisa por ambiente.
+    precisa_preparar = not tudo_pronto()
+    primeira_vez = precisa_preparar or os.environ.get("CVOICE_RECEM_PREPARADO") == "1"
+    if precisa_preparar:
+        typer.echo("primeira execução: preparando a instalação (alguns minutos)...", err=True)
+        if not _preparar():
+            typer.echo("não consegui preparar a instalação; veja as mensagens acima", err=True)
+            raise typer.Exit(code=1)
+
+    # a ordem importa: o serviço primeiro, para o painel achar tudo no ar
+    garantir_servico()
+
+    if not sem_painel:
+        _abrir_painel_em_segundo_plano()
+
+    from .sessao import sessao_atual
+
+    sessao = sessao_atual()
+    if sessao:
+        definir_sessao(sessao, True)
+        typer.echo(f"voz ligada nesta sessão ({sessao[:8]})")
+        # Na primeira vez a marca do hook de prompt NÃO PODE existir: sem venv o
+        # hook sai antes de importar qualquer coisa nossa. Checar aqui daria um
+        # aviso falso no exato momento em que tudo acabou de funcionar — e o
+        # hook Stop deste mesmo turno já roda com o venv pronto e lê a resposta.
+        if not primeira_vez and not _hook_carregado(sessao):
+            typer.echo(
+                "atenção: os hooks do plugin não estão carregados nesta janela. "
+                "O Claude Code só lê o hooks.json ao iniciar — abra uma janela "
+                "nova para as respostas serem lidas.",
+                err=True,
+            )
+    else:
+        typer.echo("voz ligada (não identifiquei a sessão; a leitura automática ficou de fora)")
+
+
+def _abrir_painel_em_segundo_plano() -> None:
+    """Abre a janela de controle sem prender este comando.
+
+    O painel roda um laço de interface que não devolve; chamá-lo aqui
+    penduraria a chamada do Claude Code até a janela fechar.
+    """
+    subprocess.Popen(
+        [ambiente.executavel(sem_console=True), "-m", "claudinho_voice.painel"],
+        **ambiente.opcoes_de_processo(),
+    )
+
+
 @app.command()
 def painel(
     no_topo: bool = typer.Option(True, "--no-topo/--sem-topo", help="fica por cima das outras janelas"),
@@ -264,6 +376,13 @@ def auto(
         # sobe o serviço já, para a primeira resposta sair falada sem espera
         garantir_servico_silencioso()
         typer.echo(f"auto ligado nesta sessão ({sessao[:8]}): as respostas serão lidas")
+        if not _hook_carregado(sessao):
+            typer.echo(
+                "atenção: os hooks do plugin não estão carregados nesta janela. "
+                "O Claude Code só lê o hooks.json ao iniciar — abra uma janela "
+                "nova para as respostas serem lidas.",
+                err=True,
+            )
     else:
         typer.echo(f"auto desligado nesta sessão ({sessao[:8]})")
 

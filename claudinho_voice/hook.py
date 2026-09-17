@@ -82,6 +82,9 @@ def _registrar(etapa: str, detalhe: str = "") -> None:
         from .config import PASTA_USUARIO
 
         caminho = PASTA_USUARIO / "hook.log"
+        # numa máquina limpa este é o PRIMEIRO código nosso a rodar: a pasta
+        # ainda não existe e, sem isto, o rastro morria calado no except abaixo
+        caminho.parent.mkdir(parents=True, exist_ok=True)
         with caminho.open("a", encoding="utf-8") as arquivo:
             arquivo.write(f"{time.strftime('%H:%M:%S')} stop {etapa} {detalhe}\n")
     except Exception:

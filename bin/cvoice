@@ -1,0 +1,44 @@
+#!/bin/sh
+# Ponto de entrada do cvoice que existe ANTES do ambiente virtual (Linux/macOS).
+# Espelho do bin/cvoice.cmd: com o .venv pronto só encaminha; sem ele, acha ou
+# traz um Python 3.12+ (via uv, sem root), prepara tudo e então encaminha.
+set -u
+RAIZ=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+CV="$RAIZ/.venv/bin/cvoice"
+[ -x "$CV" ] && exec "$CV" "$@"
+
+# "utilizável" = 3.12+ com ensurepip, testado executando (não pela existência)
+utilizavel() { "$@" -c 'import sys, ensurepip; raise SystemExit(0 if sys.version_info >= (3, 12) else 1)' >/dev/null 2>&1; }
+
+PY=""
+for c in python3.13 python3.12 python3 python; do
+  command -v "$c" >/dev/null 2>&1 && utilizavel "$c" && { PY=$c; break; }
+done
+
+if [ -z "$PY" ]; then
+  echo "nenhum Python 3.12+ utilizável nesta máquina."
+  # o uv (Rust/rustls) não lê o repositório de certificados do sistema; atrás de um
+  # proxy/antivírus que intercepta TLS o download morre com UnknownIssuer sem isto
+  export UV_SYSTEM_CERTS=1
+  UV=""
+  for p in "$HOME/.local/bin/uv" "$HOME/.cargo/bin/uv"; do [ -x "$p" ] && { UV=$p; break; }; done
+  [ -z "$UV" ] && command -v uv >/dev/null 2>&1 && UV=$(command -v uv)
+  if [ -z "$UV" ]; then
+    echo "instalando o uv (gerenciador de Python, sem root, em ~/.local/bin)..."
+    curl -LsSf https://astral.sh/uv/install.sh | UV_NO_MODIFY_PATH=1 sh || { echo "erro: não consegui baixar/instalar o uv"; exit 1; }
+    UV="$HOME/.local/bin/uv"
+    [ -x "$UV" ] || { echo "erro: o instalador do uv terminou mas ~/.local/bin/uv não apareceu"; exit 1; }
+  fi
+  echo "baixando o Python 3.12 com o uv (uma vez só)..."
+  "$UV" python install 3.12 || { echo "erro: 'uv python install 3.12' falhou"; exit 1; }
+  # --system: sem isto o uv devolve um .venv que exista no diretório — e se este
+  # código está rodando, é porque esse .venv não serve
+  PY=$("$UV" python find --system 3.12) || { echo "erro: o uv instalou o Python mas não consegui localizá-lo"; exit 1; }
+  utilizavel "$PY" || { echo "erro: o Python do uv ($PY) não passou na checagem (3.12+ com ensurepip)"; exit 1; }
+fi
+
+echo "usando o Python: $PY"
+"$PY" "$RAIZ/bin/cvoice-hook.py" preparar || { echo "erro: o preparo da instalação falhou; veja as mensagens acima"; exit 1; }
+[ -x "$CV" ] || { echo "erro: o preparo terminou mas o cvoice não apareceu em .venv/bin"; exit 1; }
+# quem preparou sabe que foi a primeira vez; o cvoice vai encontrar tudo pronto e não tem como saber
+CVOICE_RECEM_PREPARADO=1 exec "$CV" "$@"

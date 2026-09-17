@@ -5,28 +5,50 @@ description: Voz do Claude Code na máquina local. Três usos — (1) ativar a l
 
 # Claudinho's Voice
 
-Leitor por voz 100% local (Pocket TTS, voz `rafael`). Você **não** precisa subir
-nem gerenciar nada: o comando levanta o serviço sozinho na primeira chamada.
+Leitor por voz 100% local (Piper, vozes pt-BR). Você **não** precisa subir nem
+gerenciar nada: o comando levanta o serviço sozinho na primeira chamada.
 
-Comando (sempre pelo caminho absoluto, ele não está no PATH):
+O `cvoice` **não está no PATH**: ele vive no plugin. O lançador em `bin/`
+existe desde a instalação — antes mesmo de haver ambiente — então o caminho é
+sempre o mesmo. Descubra uma vez por sessão e guarde:
 
-```
-CV="cvoice"   # o instalador põe no PATH; fora dele, use o caminho do .venv
+```bash
+PL=$(ls -d ~/.claude/plugins/cache/*/claudinho-voice/*/ 2>/dev/null | head -1)
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) CV="$PL/bin/cvoice.cmd" ;; *) CV="$PL/bin/cvoice" ;; esac
+# clone manual, fora do plugin: PL é a raiz do projeto
 ```
 
 Nos exemplos abaixo, `$CV` é esse caminho. Em Bash use aspas: `"$CV"`.
+
+**Primeira vez:** não existe caminho especial. O mesmo `"$CV" ativar` do
+Cenário 1 percebe que não há ambiente e faz tudo: acha um Python 3.12+ na
+máquina (ou instala um, sem admin, se não houver), cria o ambiente, instala as
+dependências, baixa a voz (~63 MB), sobe o serviço e abre o painel. Leva
+alguns minutos e imprime cada etapa — repasse a saída, não a resuma. Se uma
+etapa falhar, a saída diz qual e por quê: mostre isso e pare. Não tente
+preparar nada por outro caminho.
 
 ## Cenário 1 — ler todas as minhas respostas nesta janela de contexto
 
 Pedido típico: "ativa a voz", "passa a ler suas respostas", "modo voz".
 
 ```bash
-"$CV" auto on
+"$CV" ativar
 ```
 
-Só isso. O comando descobre sozinho qual é esta sessão e liga a leitura **só
-aqui**: outras janelas do Claude Code não são afetadas. A partir da próxima
-resposta, tudo que eu escrever como resposta final é lido em voz alta.
+Um comando, sempre esse. Ele prepara o que faltar, sobe a voz e abre a janela de
+controle **juntas** — nunca uma sem a outra — e liga a leitura **só aqui**:
+outras janelas do Claude Code não são afetadas. A partir da próxima resposta,
+tudo que eu escrever como resposta final é lido em voz alta.
+
+Numa instalação nova ele demora alguns minutos e imprime o que está fazendo;
+numa já pronta responde na hora. Use `"$CV" ativar --sem-painel` só se ele pedir
+a voz sem a janela.
+
+**Se a saída trouxer o aviso de que os hooks não estão carregados**, repasse-o:
+o plugin foi instalado com esta janela já aberta, o Claude Code só lê o
+`hooks.json` ao iniciar, e por isso as respostas não serão lidas até ele abrir
+uma janela nova. Tudo o mais funciona — inclusive ler arquivo e artefato.
 
 Com o modo voz ligado, um hook injeta em cada prompt o **contrato de fala**: as
 respostas passam a ser conversa falada — prosa curta, sem títulos, listas,
@@ -108,23 +130,35 @@ Com o modo voz ligado, **qualquer mensagem enviada já corta a fala em
 curso** (barge-in por teclado, feito pelo hook de prompt). Não é preciso chamar
 `parar` antes de responder; só chame quando ele pedir explicitamente para calar.
 
-## Ritmo — "fala mais devagar"
+## Painel — a janela de controle
+
+Pedido típico: "abre o painel", "abre o player", "quero os controles".
+
+```bash
+"$CV" painel
+```
+
+Janela sem moldura, sempre por cima: pausar, andar de parágrafo, repetir,
+parar, volume e velocidade; na engrenagem, modelo, voz, pausas e leitura de
+blocos de código, com botão de salvar. Fechar a janela encerra tudo — a leitura,
+o modo voz e o serviço.
+
+## Velocidade — "fala mais devagar"
 
 Pedido típico: "fala mais devagar", "tá muito rápido", "acelera um pouco".
 
+A velocidade é um multiplicador da **reprodução**, como no YouTube — vale no
+áudio que já está saindo, não na geração:
+
 ```bash
-"$CV" velocidade 150   # palavras por minuto; fala uma amostra depois
-"$CV" velocidade       # mostra a atual
+curl -s -X POST http://127.0.0.1:8765/taxa -H "Content-Type: application/json" -d '{"taxa": 1.5}'
 ```
 
-Referência: 130 é conversa calma, 150 audiolivro, 170 o padrão, 258 é a voz crua
-do modelo (o ajuste desligado, com `0`). Se ele disser só "mais devagar", tire
-20 do valor atual.
+Entre 0,5 e 2,0; `1.0` é o normal. No painel isso é o botão ao lado do volume.
 
-As pausas entre frases e entre parágrafos também são configuráveis, em
-`~/.claudinho-voice/config.json` (`pausa_entre_frases_s` e
-`pausa_entre_paragrafos_s`). Depois de editar, rode `"$CV" velocidade` para o
-serviço reler — ou pergunte o valor e edite você.
+O resto da configuração (voz, modelo, pausas, ler blocos de código) fica na
+janela de ajustes do painel, pela engrenagem — abra com "abre o painel". Mexer
+no arquivo à mão não é preciso.
 
 ## Controles
 
@@ -146,4 +180,7 @@ serviço reler — ou pergunte o valor e edite você.
    `~/.claudinho-voice/termos-desconhecidos.txt`; proponha a inclusão em
    `~/.claudinho-voice/lexico.json` e só edite com o aval dele.
 4. Se o comando falhar, mostre a mensagem de erro dele em uma linha e pare.
-   O log fica em `~/.claudinho-voice/claudinho-voice.log`.
+   Os logs ficam em `~/.claudinho-voice/`: `claudinho-voice.log` (o serviço),
+   `hook.log` (por que uma resposta não foi lida) e `painel.log` (por que a
+   janela não abriu). Para "não sai voz nenhuma", o `hook.log` é o que responde
+   — se ele não tem entrada recente, os hooks não estão carregados na janela.

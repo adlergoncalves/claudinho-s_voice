@@ -12,5 +12,3 @@ certs/
 eval/audio/
 eval/resultados/
 
-# marca de que o preparo da instalação já foi disparado
-.preparando

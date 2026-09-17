@@ -16,13 +16,13 @@ A escolha do Piper foi medida — ver `eval/comparar_motores.py`.
 ### Como plugin do Claude Code (recomendado)
 
 ```
-/plugin marketplace add SEU-USUARIO/claudinho-voice
+/plugin marketplace add adlergoncalves/claudinho-s_voice
 /plugin install claudinho-voice@claudinho
 ```
 
-A skill e os três hooks ligam sozinhos. Na primeira leitura, o ambiente é
-preparado e a voz baixada (~63 MB) — uma vez só. Para adiantar isso:
-`cvoice preparar`.
+A skill e os três hooks ligam sozinhos. Diga "ativa a voz": na primeira vez o
+ambiente é preparado e a voz baixada (~63 MB) — uma vez só, alguns minutos.
+Nas seguintes, ligar é instantâneo.
 
 ### Manualmente (clone)
 
