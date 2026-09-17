@@ -1,0 +1,11 @@
+{
+  "name": "claudinho",
+  "owner": { "name": "Claudinho's Voice" },
+  "plugins": [
+    {
+      "name": "claudinho-voice",
+      "source": "./",
+      "description": "Ouça as respostas do Claude Code, e qualquer documento, em português do Brasil."
+    }
+  ]
+}

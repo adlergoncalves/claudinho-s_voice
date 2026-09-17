@@ -1,0 +1,42 @@
+{
+  "_comentario": [
+    "Corpus de dificuldades do PORTUGUÊS BRASILEIRO para o leitor, agrupado por fenômeno.",
+    "Serve ao eval/varrer_portugues.py: mostra como o espeak fonemiza cada palavra e mede,",
+    "com o Whisper, se a voz devolve a palavra certa. Dois tipos de defeito aparecem aqui:",
+    "  1. o espeak fonemiza ERRADO (tônica, timbre da vogal, x, qu/gu) → conserta com IPA",
+    "     na seção `fonemas` do léxico ou com regra de fonema no motor;",
+    "  2. o espeak acerta e o MODELO articula mal (LH, NH, R) → regra de fonema por voz",
+    "     (SUBSTITUICOES_POR_VOZ) ou aceitar como teto do modelo.",
+    "Cada grupo tem palavras comuns do dia a dia da feira e do desenvolvimento."
+  ],
+
+  "lh": ["filho", "trabalho", "detalhe", "milhão", "planilha", "melhor", "escolher", "falha", "olho", "velho", "brilho", "orgulho", "gatilho", "calha", "toalha", "batalha", "molhado", "bilhete", "talher", "colheita", "julho", "alho", "joelho", "mulher", "malha", "telhado"],
+
+  "nh": ["amanhã", "manhã", "caminho", "sonho", "banho", "senha", "linha", "vizinho", "dinheiro", "cozinha", "tamanho", "ganho", "desenho", "engenharia", "campanha", "companhia", "unha", "cunha", "rainha", "ninho", "pinha", "minha", "nenhum", "carinho", "estranho"],
+
+  "qu_gu": ["tranquilo", "cinquenta", "frequente", "sequência", "consequência", "quinquênio", "quociente", "quota", "equipe", "quilo", "questão", "aquilo", "aguentar", "linguiça", "ambíguo", "água", "guitarra", "aguarde", "sangue", "seguinte", "quadro", "quarta", "quando", "quanto", "pequeno", "líquido", "equivalente", "adequado", "eloquente", "delinquente"],
+
+  "x": ["exame", "exemplo", "executar", "existe", "exato", "êxito", "táxi", "tóxico", "fixo", "sexo", "flexível", "complexo", "sintaxe", "xícara", "xerox", "enxame", "caixa", "baixo", "peixe", "deixar", "próximo", "máximo", "auxílio", "trouxe", "exceto", "excesso", "exceção", "extra", "texto", "contexto", "sexta", "experiência"],
+
+  "timbre_e": ["começo", "começa", "esforço", "esforços", "aperto", "certo", "perto", "verde", "medo", "cedo", "peso", "ele", "dele", "este", "esse", "deve", "ver", "mesa", "pedra", "seco", "fera", "sede", "vela", "cera", "tema", "sistema", "problema", "esquema", "sequela", "sequestro"],
+
+  "timbre_o": ["olho", "olhos", "jogo", "jogos", "novo", "novos", "nova", "ovo", "ovos", "porco", "porcos", "corpo", "corpos", "poço", "poços", "forno", "fornos", "osso", "ossos", "posto", "postos", "gosto", "gostoso", "molho", "fofo", "sobre", "sopa", "nota", "bola", "cola", "hora", "coisa", "escopo", "fluxo", "bloco", "modo", "todo", "tudo"],
+
+  "nasal": ["muito", "bem", "também", "irmão", "irmãos", "irmã", "irmãs", "mãe", "mães", "pão", "pães", "põe", "põem", "cãibra", "não", "então", "opção", "opções", "ação", "ações", "coração", "corações", "sessão", "questões", "manhã", "amanhã", "campanha", "tem", "têm", "vem", "vêm", "ontem", "homem", "homens", "ordem", "ordens", "jovem", "jovens", "nuvem", "algum", "alguns", "um", "uns", "bom", "bons", "som", "sons", "fim", "fins", "assim"],
+
+  "r": ["rato", "rua", "rede", "roda", "rico", "carro", "terra", "ferro", "erro", "corre", "porta", "cerca", "perto", "forte", "carta", "verde", "árvore", "livro", "prazo", "problema", "brecha", "prato", "preço", "trabalho", "grande", "frente", "fatura", "órfã", "cadeira", "primeiro", "terceiro", "fazer", "ler", "escrever", "partir", "sofrer", "servidor", "computador", "mar", "lugar", "amor"],
+
+  "tonica": ["rubrica", "ínterim", "recorde", "gratuito", "circuito", "fluido", "ruim", "saúde", "país", "países", "juízo", "baú", "sauna", "protótipo", "pudico", "ibero", "hieróglifo", "avaro", "ariete", "libido", "nobel", "mister", "condor", "sutil", "filantropo", "ômega", "álibi", "lêvedo", "boêmia", "período", "análise", "prática", "técnico", "código", "número", "título", "público", "único", "página", "máquina", "página", "estatística", "característica", "matemática", "relatório", "usuário", "necessário", "história", "memória", "categoria", "bateria", "polícia", "farmácia", "democracia", "pronúncia"],
+
+  "hiato_ditongo": ["saída", "caída", "ideia", "assembleia", "plateia", "heroico", "paranoico", "jiboia", "voo", "enjoo", "perdoo", "creem", "leem", "veem", "deem", "feiura", "baiuca", "cauim", "ruína", "juiz", "juízes", "raiz", "raízes", "país", "paisagem", "gratuito", "intuito", "fortuito", "circuito", "muito", "cuidado", "sua", "suas", "lua", "rua", "tua", "dia", "dias", "via", "vias", "área", "áreas", "série", "séries", "espécie", "história", "vazio", "frio", "rio", "tio", "navio"],
+
+  "homografos_sem_acento": ["pode", "pôde", "para", "pára", "colher", "sede", "gosto", "jogo", "olho", "começo", "acerto", "aperto", "governo", "almoço", "esforço", "socorro", "torto", "sogro", "sogra", "corte", "coro", "molho", "rogo", "forma", "fôrma"],
+
+  "ce_ci_ge_gi_j": ["cedo", "cima", "cinco", "certo", "cesta", "gelo", "gente", "girar", "gigante", "jeito", "já", "hoje", "jogar", "juro", "geral", "gerente", "gestão", "agência", "digital", "lógica", "página", "energia", "engenharia", "registro", "gênero", "genérico", "legítimo", "regime", "origem", "viagem", "garagem"],
+
+  "s_z_ss": ["casa", "caso", "coisa", "mesa", "meses", "presente", "pesquisa", "análise", "crise", "vaso", "aviso", "atraso", "passo", "pássaro", "assado", "nosso", "isso", "disso", "possível", "necessário", "processo", "sucesso", "acesso", "excesso", "zero", "razão", "prazo", "vazio", "dizer", "fazer", "trazer", "azul", "cozinha", "beleza", "riqueza", "natureza", "certeza", "esquerda", "escola", "espaço", "estado", "resto", "gosto", "mesmo", "desde"],
+
+  "l_final_u": ["papel", "papéis", "nível", "níveis", "possível", "possíveis", "difícil", "difíceis", "fácil", "azul", "azuis", "sol", "sóis", "sal", "mal", "mel", "hotel", "hotéis", "anel", "anéis", "brasil", "natal", "total", "final", "local", "legal", "atual", "manual", "mensal", "anual", "real", "reais", "mil", "civil", "útil", "móvel", "imóvel", "álcool", "futebol", "gol", "gols"],
+
+  "feira_dominio": ["expositor", "expositores", "estande", "estandes", "pavilhão", "credenciamento", "credencial", "montagem", "desmontagem", "metragem", "locação", "patrocínio", "patrocinador", "visitante", "congressista", "palestrante", "inscrição", "inscrições", "boleto", "fatura", "vencimento", "cobrança", "parcela", "parcelamento", "desconto", "acréscimo", "juros", "multa", "quitação", "baixa", "estorno", "reembolso", "orçamento", "proposta", "contrato", "aditivo", "assinatura", "signatário", "testemunha", "cláusula", "vigência", "rescisão", "renovação", "comissão", "comissionamento", "vendedor", "gerente", "diretoria", "organizador", "promotor", "organizadora", "promotora", "exposição", "evento", "eventos", "edição", "planta", "corredor", "ilha", "esquina", "área", "metro", "quadrado", "elétrica", "hidráulica", "limpeza", "segurança", "estacionamento", "alimentação", "hospedagem", "traslado", "credenciado", "catálogo", "categoria", "segmento", "benefício", "benefícios", "cortesia", "cortesias", "convite", "convites", "ingresso", "ingressos"]
+}

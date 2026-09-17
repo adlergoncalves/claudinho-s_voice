@@ -1,0 +1,28 @@
+[project]
+name = "claudinho-voice"
+version = "0.1.0"
+description = "Leitor por voz para o Claude Code — Piper TTS, vozes pt-BR, 100% local"
+requires-python = ">=3.12"
+dependencies = [
+    "piper-tts>=1.8.0",
+    "sounddevice>=0.5.0",
+    "numpy>=1.24",
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "httpx>=0.27",
+    "typer>=0.12",
+]
+
+[project.optional-dependencies]
+# motores alternativos: o projeto funciona só com o Piper
+pocket = ["pocket-tts>=3.1.0"]
+kokoro = ["kokoro-onnx>=0.4.0"]
+painel = ["pywebview>=6.0"]
+dev = ["pytest>=8.0", "faster-whisper>=1.0", "soundfile>=0.12"]
+
+[project.scripts]
+cvoice = "claudinho_voice.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

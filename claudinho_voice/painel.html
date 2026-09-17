@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Claudinho's Voice</title>
+<style>
+  /* Material da Apple (profundidade por camada, tipografia do sistema, movimento
+     curto) com o pulso vivo de um assistente: a onda reage à fala de verdade. */
+  :root{
+    --fundo:#16161A;            /* opaco: o WebView2 não compõe com a mesa */
+    --camada:#1F1F24;
+    --camada-2:#2A2A30;
+    --separador:rgba(255,255,255,.08);
+    --rotulo:#F5F5F7;
+    --rotulo-2:rgba(235,235,245,.60);
+    --rotulo-3:rgba(235,235,245,.30);
+    --vivo:#32D74B;
+    --espera:#FF9F0A;
+    --trilho:rgba(255,255,255,.14);
+    --mola:cubic-bezier(.32,.72,0,1);
+  }
+
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-user-select:none; user-select:none}
+  html,body{height:100%; overflow:hidden; background:var(--fundo)}
+  body{
+    font:13px/1.35 -apple-system,"SF Pro Text","Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;
+    color:var(--rotulo); letter-spacing:-.01em;
+  }
+
+  .janela{
+    height:100%; display:flex; flex-direction:column; overflow:hidden;
+    position:relative; border-radius:16px;
+    background:
+      radial-gradient(120% 80% at 50% -10%, rgba(88,140,255,.10), transparent 60%),
+      var(--fundo);
+  }
+  /* brilho que respira sob a onda enquanto fala */
+  .janela::after{
+    content:""; position:absolute; inset:-40% -20% auto; height:180px;
+    background:radial-gradient(50% 60% at 50% 50%, rgba(50,215,75,.16), transparent 70%);
+    opacity:0; transition:opacity .6s ease; pointer-events:none;
+  }
+  .falando.janela::after{opacity:1; animation:respira 3.4s ease-in-out infinite}
+  @keyframes respira{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+
+  /* ── barra ───────────────────────────────────────── */
+  .barra{
+    display:flex; align-items:center; gap:3px; padding:9px 8px 5px;
+    cursor:default; flex-shrink:0; position:relative; z-index:2;
+  }
+  .luz{width:7px; height:7px; border-radius:50%; background:var(--rotulo-3);
+    transition:background .3s, box-shadow .3s; flex-shrink:0}
+  .falando .luz{background:var(--vivo); box-shadow:0 0 0 3.5px rgba(50,215,75,.16)}
+  .pausado .luz{background:var(--espera); box-shadow:0 0 0 3.5px rgba(255,159,10,.16)}
+  .marca{
+    font-size:11px; font-weight:600; color:var(--rotulo-2);
+    flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    letter-spacing:.02em; margin-left:5px;
+  }
+  .icone-btn{
+    -webkit-app-region:no-drag; width:26px; height:26px; border-radius:50%;
+    display:grid; place-items:center; cursor:pointer;
+    background:var(--camada); border:none; color:var(--rotulo-2);
+    flex-shrink:0;  /* a barra é estreita: sem isto os botões somem no aperto */
+    transition:background .18s, color .18s, transform .3s var(--mola);
+  }
+  .icone-btn:hover{background:var(--camada-2); color:var(--rotulo)}
+  .icone-btn.fechar:hover{background:#E5484D; color:#fff}
+  .icone-btn svg{width:15px; height:15px; fill:currentColor}
+  .vendo-ajustes #btFace{transform:rotate(90deg)}
+
+  /* ── faces ───────────────────────────────────────── */
+  /* só a barra de título arrasta a janela; o resto interage normalmente */
+  .faces{flex:1; position:relative; overflow:hidden; z-index:1; -webkit-app-region:no-drag}
+  .face{
+    position:absolute; inset:0; padding:0 16px 13px; display:flex; flex-direction:column;
+    transition:transform .42s var(--mola), opacity .26s ease;
+  }
+  .face.ajustes{
+    transform:translateX(100%); opacity:0; padding:4px 16px 14px;
+    overflow-y:auto; overscroll-behavior:contain; display:block;
+    scrollbar-width:thin; scrollbar-color:var(--trilho) transparent;
+  }
+  .face.ajustes::-webkit-scrollbar{width:5px}
+  .face.ajustes::-webkit-scrollbar-thumb{background:var(--trilho); border-radius:3px}
+  .face.ajustes::-webkit-scrollbar-track{background:transparent}
+  .vendo-ajustes .face.tocador{transform:translateX(-26%); opacity:0; pointer-events:none}
+  .vendo-ajustes .face.ajustes{transform:translateX(0); opacity:1}
+
+  /* ── onda ────────────────────────────────────────── */
+  .onda{
+    display:flex; align-items:center; justify-content:center; gap:3px;
+    height:36px; margin:0;
+  }
+  .onda i{
+    width:3px; height:3px; border-radius:2px; background:var(--rotulo-3);
+    opacity:.45; transition:background .4s, height .4s var(--mola), opacity .4s;
+  }
+  .falando .onda i, .pausado .onda i{opacity:1}
+  .falando .onda i{
+    background:linear-gradient(180deg,#6EE7A8,var(--vivo));
+    animation:onda 1.1s ease-in-out infinite;
+  }
+  .pausado .onda i{background:var(--espera); opacity:.5}
+  @keyframes onda{
+    0%,100%{height:4px}
+    50%{height:var(--alto,20px)}
+  }
+  .onda i:nth-child(1){--alto:11px; animation-delay:-.9s}
+  .onda i:nth-child(2){--alto:19px; animation-delay:-.75s}
+  .onda i:nth-child(3){--alto:27px; animation-delay:-.45s}
+  .onda i:nth-child(4){--alto:14px; animation-delay:-.6s}
+  .onda i:nth-child(5){--alto:24px; animation-delay:-.2s}
+  .onda i:nth-child(6){--alto:30px; animation-delay:-.05s}
+  .onda i:nth-child(7){--alto:16px; animation-delay:-.35s}
+  .onda i:nth-child(8){--alto:22px; animation-delay:-.55s}
+  .onda i:nth-child(9){--alto:12px; animation-delay:-.8s}
+  .onda i:nth-child(10){--alto:26px; animation-delay:-.15s}
+  .onda i:nth-child(11){--alto:18px; animation-delay:-.65s}
+  .onda i:nth-child(12){--alto:9px;  animation-delay:-.95s}
+
+  /* ── tocador ─────────────────────────────────────── */
+  .titulo{
+    font-size:14px; font-weight:600; letter-spacing:-.016em; text-align:center;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .sub{font-size:11px; color:var(--rotulo-2); text-align:center; margin-top:1px;
+    font-variant-numeric:tabular-nums}
+
+  .trilho{height:3px; background:var(--trilho); border-radius:2px; overflow:hidden; margin:0 0 5px}
+  .trilho div{height:100%; width:0%; background:var(--rotulo); border-radius:2px;
+    transition:width .45s var(--mola)}
+  .tempos{display:flex; justify-content:space-between; font-size:10px;
+    color:var(--rotulo-3); font-variant-numeric:tabular-nums}
+
+  .transporte{display:flex; align-items:center; justify-content:center; gap:19px; margin:0}
+  .tb{
+    background:none; border:none; cursor:pointer; color:var(--rotulo);
+    display:grid; place-items:center; padding:3px; border-radius:50%;
+    transition:opacity .15s, transform .12s var(--mola);
+  }
+  .tb:hover:not(:disabled){opacity:.62}
+  .tb:active:not(:disabled){transform:scale(.87)}
+  .tb:disabled{opacity:.2; cursor:default}
+  .tb svg{width:18px; height:18px; fill:currentColor}
+  .tb.grande svg{width:26px; height:26px}
+  .tb.menor svg{width:14px; height:14px; opacity:.72}
+
+  .volume{display:flex; align-items:center; gap:9px; padding:0}
+  #btTaxa{
+    background:var(--camada); border:none; border-radius:7px; cursor:pointer;
+    color:var(--rotulo-2); font:inherit; font-size:10.5px; font-weight:600;
+    padding:3px 7px; min-width:34px; flex-shrink:0;
+    font-variant-numeric:tabular-nums; transition:background .15s, color .15s;
+  }
+  #btTaxa:hover{background:var(--camada-2); color:var(--rotulo)}
+  #btTaxa.ativo{background:rgba(50,215,75,.16); color:var(--vivo)}
+  .volume svg{width:12px; height:12px; fill:var(--rotulo-3); flex-shrink:0}
+  #btMudo{cursor:pointer; -webkit-app-region:no-drag}
+  #btMudo:hover{fill:var(--rotulo-2)}
+  .mudo #btMudo{fill:var(--espera)}
+
+  /* nada que se arrasta pode ficar na região de arrastar a janela */
+  input[type=range]{
+    -webkit-app-region:no-drag;
+    -webkit-appearance:none; appearance:none; flex:1; height:3px;
+    background:var(--trilho); border-radius:2px; cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:13px; height:13px; border-radius:50%;
+    background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.4); cursor:grab;
+  }
+  input[type=range]::-webkit-slider-thumb:active{cursor:grabbing}
+
+  /* ── ajustes ─────────────────────────────────────── */
+  .secao{
+    font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--rotulo-3); padding:10px 3px 6px; background:var(--fundo);
+  }
+  .secao:first-child{padding-top:2px}
+  .grupo{background:var(--camada); border-radius:10px; margin-bottom:4px; overflow:hidden; flex-shrink:0}
+  .linha{
+    display:flex; align-items:center; gap:10px; padding:9px 11px; min-height:40px;
+    border-bottom:.5px solid var(--separador); flex-shrink:0;
+  }
+  .linha:last-child{border-bottom:none}
+  .linha label{font-size:12.5px; flex:1; white-space:nowrap}
+  .linha .valor{font-size:11px; color:var(--rotulo-2); font-variant-numeric:tabular-nums;
+    min-width:52px; text-align:right}
+  .linha input[type=range]{max-width:96px}
+
+  select{
+    -webkit-app-region:no-drag;
+    -webkit-appearance:none; appearance:none; background:var(--camada-2);
+    border:none; border-radius:7px; color:var(--rotulo); font:inherit; font-size:12px;
+    padding:4px 22px 4px 9px; cursor:pointer;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='%23999' d='M6 8.5 2.5 5h7z'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 6px center; background-size:10px;
+  }
+
+  .chave{
+    -webkit-app-region:no-drag;
+    -webkit-appearance:none; appearance:none; width:37px; height:21px; border-radius:11px;
+    background:var(--trilho); position:relative; cursor:pointer; flex-shrink:0;
+    transition:background .22s var(--mola);
+  }
+  .chave::after{
+    content:""; position:absolute; top:2px; left:2px; width:17px; height:17px;
+    border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.35);
+    transition:transform .22s var(--mola);
+  }
+  .chave:checked{background:var(--vivo)}
+  .chave:checked::after{transform:translateX(16px)}
+
+  #btSalvar{
+    width:100%; margin-top:8px; padding:9px; border:none; border-radius:9px;
+    background:var(--vivo); color:#06240E; font:inherit; font-size:12.5px;
+    font-weight:600; cursor:pointer; transition:opacity .15s, transform .1s var(--mola);
+  }
+  #btSalvar:hover{opacity:.9}
+  #btSalvar:active{transform:scale(.98)}
+  #btSalvar.salvo{
+    background:var(--camada-2); color:var(--vivo);
+    box-shadow:inset 0 0 0 1px rgba(50,215,75,.45);
+  }
+
+  .nota{
+    position:absolute; inset:auto 14px 7px; text-align:center; font-size:10.5px;
+    background:var(--fundo); padding:3px 0; border-radius:6px;
+    color:var(--rotulo-2); opacity:0; transition:opacity .25s; pointer-events:none; z-index:3;
+  }
+  .nota.ver{opacity:1}
+</style>
+</head>
+<body>
+<div class="janela" id="janela">
+
+  <div class="barra">
+    <span class="luz"></span>
+    <span class="marca">Claudinho's Voice</span>
+    <button class="icone-btn" id="btFace" title="Ajustes">
+      <svg viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7zm7.43-2.53c.04-.32.07-.64.07-.97s-.03-.66-.07-.98l2.11-1.65a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.3 7.3 0 0 0-1.69-.98l-.38-2.65A.49.49 0 0 0 14 2h-4a.49.49 0 0 0-.49.42l-.38 2.65c-.61.25-1.17.58-1.69.98l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.65.07.97l-2.11 1.66a.5.5 0 0 0-.12.64l2 3.46c.14.24.44.32.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.04.24.24.42.49.42h4c.25 0 .45-.18.49-.42l.38-2.65c.61-.25 1.17-.58 1.69-.98l2.49 1c.17.1.47.02.61-.22l2-3.46a.5.5 0 0 0-.12-.64l-2.11-1.66z"/></svg>
+    </button>
+    <button class="icone-btn" id="btMinimizar" title="Minimizar">
+      <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="2" rx="1"/></svg>
+    </button>
+    <button class="icone-btn fechar" id="btFechar" title="Fechar e encerrar a leitura">
+      <svg viewBox="0 0 24 24"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 5.7 18.3l-1.4-1.4L10.6 12 4.3 5.7l1.4-1.4L12 10.6l4.9-4.9z"/></svg>
+    </button>
+  </div>
+
+  <div class="faces">
+
+    <div class="face tocador" style="justify-content:space-evenly">
+      <div class="onda">
+        <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+      </div>
+
+      <div class="titulo" id="titulo">Em silêncio</div>
+      <div class="sub" id="sub">nada sendo lido</div>
+
+      <div class="trilho"><div id="progresso"></div></div>
+      <div class="tempos">
+        <span id="posicao">—</span>
+        <span id="restante"></span>
+      </div>
+
+      <div class="transporte">
+        <button class="tb menor" id="btRepetir" title="Repetir a última leitura  (R)">
+          <svg viewBox="0 0 24 24"><path d="M12 5V2L8 6l4 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z"/></svg>
+        </button>
+        <button class="tb" id="btVoltar" title="Parágrafo anterior  (←)">
+          <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+        </button>
+        <button class="tb grande" id="btPausar" title="Pausar / retomar  (espaço)">
+          <svg viewBox="0 0 24 24"><path id="icPausar" d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+        </button>
+        <button class="tb" id="btAvancar" title="Próximo parágrafo  (→)">
+          <svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg>
+        </button>
+        <button class="tb menor" id="btParar" title="Parar  (Esc)">
+          <svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+        </button>
+      </div>
+
+      <div class="volume">
+        <svg id="btMudo" viewBox="0 0 24 24" title="Mudo"><path id="icMudo" d="M3 10v4h4l5 4V6L7 10H3z"/></svg>
+        <input type="range" id="volume" min="0" max="100" value="100">
+        <button id="btTaxa" title="Velocidade da reprodução">1x</button>
+        <svg viewBox="0 0 24 24"><path d="M3 10v4h4l5 4V6L7 10H3zm11.5 2a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4zM12 2v2a8 8 0 0 1 0 16v2a10 10 0 0 0 0-20z"/></svg>
+      </div>
+    </div>
+
+    <div class="face ajustes">
+      <div class="secao">Voz</div>
+      <div class="grupo">
+        <div class="linha">
+          <label for="selMotor">Modelo</label>
+          <select id="selMotor"></select>
+        </div>
+        <div class="linha">
+          <label for="selVoz">Voz</label>
+          <select id="selVoz"></select>
+        </div>
+      </div>
+
+      <div class="secao">Leitura</div>
+      <div class="grupo">
+        <div class="linha">
+          <label for="chCodigo">Ler blocos de código</label>
+          <input type="checkbox" class="chave" id="chCodigo">
+        </div>
+        <div class="linha">
+          <label for="chAuto">Ler respostas automaticamente</label>
+          <input type="checkbox" class="chave" id="chAuto">
+        </div>
+      </div>
+
+      <div class="secao">Respiro</div>
+      <div class="grupo">
+        <div class="linha">
+          <label for="rgFrases">Entre frases</label>
+          <input type="range" id="rgFrases" min="0" max="60" step="2" value="10">
+          <span class="valor" id="vlFrases">0,10 s</span>
+        </div>
+        <div class="linha">
+          <label for="rgParagrafos">Entre parágrafos</label>
+          <input type="range" id="rgParagrafos" min="0" max="120" step="2" value="22">
+          <span class="valor" id="vlParagrafos">0,22 s</span>
+        </div>
+      </div>
+
+      <button id="btSalvar">Salvar</button>
+    </div>
+
+  </div>
+  <div class="nota" id="nota"></div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const janela = $("janela");
+let pausado = false, mexendo = false, ultimoLendo = false;
+
+const ICONE_PAUSA = "M6 5h4v14H6zm8 0h4v14h-4z";
+const ICONE_PLAY  = "M8 5v14l11-7z";
+
+function nota(texto){
+  const el = $("nota");
+  el.textContent = texto;
+  el.classList.add("ver");
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove("ver"), 1800);
+}
+
+async function api(metodo, arg){
+  try{
+    const r = await window.pywebview.api[metodo](arg);
+    if (r && r.ok === false && (r.motivo || r.erro)) nota(r.motivo || r.erro);
+    if (r && r.reinicio_necessario) nota("a voz muda ao reiniciar o serviço");
+    return r;
+  }catch(e){ nota("serviço fora do ar"); return null; }
+}
+
+function pintar(e){
+  if (!e) return;
+  const lendo = !!e.lendo;
+  ultimoLendo = lendo;
+  pausado = !!e.pausado;
+
+  // classList em vez de className: sobrescrever apagava a face aberta
+  janela.classList.toggle("falando", lendo && !pausado);
+  janela.classList.toggle("pausado", pausado);
+
+  const titulo = (e.titulo_atual || "").trim();
+  // "resposta" e "narração" são rótulos internos da fila, não título de leitura
+  const generico = !titulo || titulo === "resposta" || titulo === "narração";
+  $("titulo").textContent = generico ? (lendo ? "Claudinho falando" : "Em silêncio") : titulo;
+
+  const total = e.total_frases || 0, atual = e.frase_atual || 0;
+  const naFila = e.itens_na_fila || 0;
+  $("sub").textContent = !lendo ? "nada sendo lido"
+    : pausado ? "pausado"
+    : naFila ? `falando · ${naFila} na fila` : "falando";
+
+  $("progresso").style.width = total ? (atual / total * 100) + "%" : "0%";
+  $("posicao").textContent = total ? `${atual} de ${total}` : "—";
+  $("restante").textContent = total && atual < total
+    ? `~${Math.max(1, Math.round((total - atual) * 3.4 / 60))} min` : "";
+
+  $("icPausar").setAttribute("d", pausado ? ICONE_PLAY : ICONE_PAUSA);
+  ["btVoltar","btAvancar","btParar","btPausar"].forEach(b => $(b).disabled = !lendo);
+
+  if (!mexendo && e.volume !== undefined) $("volume").value = Math.round(e.volume * 100);
+  if (e.taxa !== undefined && e.taxa !== taxaAtual) { taxaAtual = e.taxa; pintarTaxa(); }
+}
+
+$("btVoltar").onclick  = () => api("voltar");
+$("btAvancar").onclick = () => api("avancar");
+$("btParar").onclick   = () => api("parar");
+$("btRepetir").onclick = () => api("repetir");
+$("btPausar").onclick  = () => api(pausado ? "retomar" : "pausar");
+
+const vol = $("volume");
+let volumeAntes = 1;
+$("btMudo").onclick = () => {
+  const atual = Number(vol.value) / 100;
+  if (atual > 0) { volumeAntes = atual; vol.value = 0; }
+  else { vol.value = Math.round((volumeAntes || 1) * 100); }
+  janela.classList.toggle("mudo", Number(vol.value) === 0);
+  api("volume", Number(vol.value) / 100);
+};
+
+vol.oninput  = () => { mexendo = true; };
+vol.onchange = () => { mexendo = false; api("volume", vol.value / 100); };
+
+$("btMinimizar").onclick = () => api("minimizar");
+$("btFechar").onclick    = () => api("fechar");
+
+// ── velocidade de reprodução (ciclo, como no YouTube) ──
+const TAXAS = [0.75, 1, 1.25, 1.5, 1.75, 2];
+let taxaAtual = 1;
+
+function pintarTaxa(){
+  const rotulo = taxaAtual === 1 ? "1x"
+    : (taxaAtual % 1 === 0 ? taxaAtual : String(taxaAtual).replace(".", ",")) + "x";
+  $("btTaxa").textContent = rotulo;
+  $("btTaxa").classList.toggle("ativo", taxaAtual !== 1);
+}
+
+$("btTaxa").onclick = () => {
+  const i = TAXAS.indexOf(taxaAtual);
+  taxaAtual = TAXAS[(i + 1) % TAXAS.length];
+  pintarTaxa();
+  api("taxa", taxaAtual);
+};
+
+$("btFace").onclick = () => {
+  janela.classList.toggle("vendo-ajustes");
+  if (janela.classList.contains("vendo-ajustes")) carregarAjustes();
+};
+
+// 170 é o topo do deslizante e significa "sem freio": a cadu já fala a ~160 ppm
+function seg(v){ return (v / 100).toFixed(2).replace(".", ",") + " s"; }
+
+let catalogo = [];
+
+function pintarVozes(motor, vozAtual){
+  const m = catalogo.find(x => x.nome === motor);
+  const vozes = m ? m.vozes : [];
+  $("selVoz").innerHTML = vozes
+    .map(v => `<option${v === vozAtual ? " selected" : ""}>${v}</option>`).join("");
+}
+
+async function carregarAjustes(){
+  const dados = await api("motores");
+  if (dados && dados.motores) {
+    catalogo = dados.motores;
+    $("selMotor").innerHTML = catalogo
+      .map(m => `<option value="${m.nome}"${m.nome === dados.atual ? " selected" : ""}>${m.rotulo}</option>`)
+      .join("");
+  }
+
+  const cfg = await api("config");
+  if (!cfg) return;
+  pintarVozes(cfg.motor || (dados && dados.atual), cfg.voz);
+  $("chCodigo").checked = !!cfg.ler_codigo;
+  $("chAuto").checked   = !!cfg.auto;
+  $("rgFrases").value = Math.round((cfg.pausa_frases || 0) * 100);
+  $("vlFrases").textContent = seg($("rgFrases").value);
+  $("rgParagrafos").value = Math.round((cfg.pausa_paragrafos || 0) * 100);
+  $("vlParagrafos").textContent = seg($("rgParagrafos").value);
+}
+
+$("selMotor").onchange = async e => {
+  const motor = e.target.value;
+  const m = catalogo.find(x => x.nome === motor);
+  const primeira = m && m.vozes.length ? m.vozes[0] : "";
+  pintarVozes(motor, primeira);
+  // motor e voz vão juntos: um motor não sabe falar com a voz do outro
+  await api("ajustar", {motor, voz: primeira});
+};
+
+$("selVoz").onchange   = e => api("ajustar", {voz: e.target.value});
+$("chCodigo").onchange = e => api("ajustar", {ler_codigo: e.target.checked});
+$("chAuto").onchange   = e => api("auto", e.target.checked);
+
+function deslizante(id, rotulo, chave, converte, divisor){
+  const el = $(id);
+  el.oninput  = () => { $(rotulo).textContent = converte(el.value); };
+  el.onchange = () => api("ajustar", {[chave]: Number(el.value) / divisor});
+}
+deslizante("rgFrases", "vlFrases", "pausa_frases", seg, 100);
+deslizante("rgParagrafos", "vlParagrafos", "pausa_paragrafos", seg, 100);
+
+document.addEventListener("keydown", e => {
+  if (["SELECT","INPUT"].includes(e.target.tagName)) return;
+  // Esc para a leitura; com nada tocando, fecha a janela
+  const mapa = {" ":"alternar", ArrowLeft:"voltar", ArrowRight:"avancar",
+                Escape: "parar",  // fechar é só pelo botão: encerra tudo
+                r:"repetir", R:"repetir"};
+  const acao = mapa[e.key];
+  if (!acao) return;
+  e.preventDefault();
+  api(acao === "alternar" ? (pausado ? "retomar" : "pausar") : acao);
+});
+
+// ── arrastar a janela pela barra de título ──────────
+// Com easy_drag desligado, o pywebview não honra o -webkit-app-region: a
+// janela só se move se a gente mover. Só a barra arrasta; botão nenhum.
+(function arrastavel(){
+  const barra = document.querySelector(".barra");
+  let arrastando = false, ultimoX = 0, ultimoY = 0, pendente = null;
+
+  barra.addEventListener("mousedown", e => {
+    if (e.button !== 0 || e.target.closest("button")) return;
+    arrastando = true;
+    ultimoX = e.screenX; ultimoY = e.screenY;
+    e.preventDefault();
+  });
+
+  window.addEventListener("mousemove", e => {
+    if (!arrastando) return;
+    const dx = e.screenX - ultimoX, dy = e.screenY - ultimoY;
+    if (!dx && !dy) return;
+    ultimoX = e.screenX; ultimoY = e.screenY;
+    // acumula e envia num quadro só: uma chamada por pixel engasgaria a ponte
+    pendente = pendente || {dx: 0, dy: 0};
+    pendente.dx += dx; pendente.dy += dy;
+    requestAnimationFrame(() => {
+      if (!pendente) return;
+      const d = pendente; pendente = null;
+      window.pywebview.api.mover(d).catch(() => {});
+    });
+  });
+
+  window.addEventListener("mouseup", () => { arrastando = false; });
+})();
+
+// ── salvar: grava tudo que está na tela de uma vez ──
+$("btSalvar").onclick = async () => {
+  const ajustes = {
+    motor: $("selMotor").value,
+    voz: $("selVoz").value,
+    ler_codigo: $("chCodigo").checked,
+    pausa_frases: Number($("rgFrases").value) / 100,
+    pausa_paragrafos: Number($("rgParagrafos").value) / 100,
+  };
+  const b = $("btSalvar");
+  b.textContent = "Salvando…";
+  b.disabled = true;
+
+  const r = await api("ajustar", ajustes);
+  await api("taxa", taxaAtual);
+  // volume fica de fora: é do momento, não da configuração. Um mudo acidental
+  // não pode virar preferência gravada — e já vale na hora de qualquer forma.
+
+  const deu = r && r.ok !== false;
+  b.textContent = deu ? "Salvo ✓" : "Não deu";
+  b.classList.toggle("salvo", deu);
+  b.disabled = false;
+  nota(deu ? "configuração salva" : "não consegui salvar");
+  setTimeout(() => { b.textContent = "Salvar"; b.classList.remove("salvo"); }, 2200);
+};
+
+async function laco(){
+  try{ pintar(await window.pywebview.api.estado()); }catch(e){}
+  setTimeout(laco, 600);
+}
+window.addEventListener("pywebviewready", laco);
+</script>
+</body>
+</html>

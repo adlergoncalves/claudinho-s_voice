@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+certs/ca-bundle.pem
+.pytest_cache/
+tmp/
+*.wav
+certs/
+
+# saída das ferramentas de medição: áudio gerado e placares de rodada.
+# O que vale é o script que reproduz a medida, não o resultado de uma execução.
+eval/audio/
+eval/resultados/

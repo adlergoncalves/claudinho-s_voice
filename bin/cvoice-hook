@@ -1,0 +1,10 @@
+#!/bin/sh
+# Invólucro dos hooks em Linux/macOS.
+# Falha é silenciosa de propósito: hook que quebra atrapalha a sessão inteira.
+RAIZ="$(cd "$(dirname "$0")/.." && pwd)"
+if [ -x "$RAIZ/.venv/bin/python" ]; then
+  "$RAIZ/.venv/bin/python" "$RAIZ/bin/cvoice-hook.py" "$@" || true
+else
+  python3 "$RAIZ/bin/cvoice-hook.py" "$@" || true
+fi
+exit 0
