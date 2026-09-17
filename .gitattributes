@@ -1,0 +1,7 @@
+# Scripts sh precisam de LF em qualquer checkout: com CRLF o Linux/macOS responde
+# "bad interpreter" e "command not found" no CR. Os do Windows ficam CRLF.
+bin/cvoice        text eol=lf
+bin/cvoice-hook   text eol=lf
+*.sh              text eol=lf
+*.cmd             text eol=crlf
+*.ps1             text eol=crlf

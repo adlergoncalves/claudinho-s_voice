@@ -1,10 +1,20 @@
 #!/bin/sh
-# Invólucro dos hooks em Linux/macOS.
+# Invólucro dos hooks para o caminho `sh` — que é o que o Claude Code usa em
+# TODAS as plataformas, inclusive no Windows (Git Bash). O .cmd ao lado existe
+# para quem chama à mão; este é o que roda de verdade.
+#
+# Regra: só usa o Python do próprio .venv, em qualquer dos dois layouts. Sem
+# .venv o hook não tem o que fazer e sai calado — nunca cai num Python do
+# sistema, porque no Windows `python3` costuma ser o stub da Microsoft Store,
+# que "existe", não roda nada, e o `|| true` escondia isso. Era por isso que
+# nenhuma resposta era lida e nenhum rastro aparecia no hook.log.
+#
 # Falha é silenciosa de propósito: hook que quebra atrapalha a sessão inteira.
 RAIZ="$(cd "$(dirname "$0")/.." && pwd)"
-if [ -x "$RAIZ/.venv/bin/python" ]; then
-  "$RAIZ/.venv/bin/python" "$RAIZ/bin/cvoice-hook.py" "$@" || true
-else
-  python3 "$RAIZ/bin/cvoice-hook.py" "$@" || true
-fi
+for PY in "$RAIZ/.venv/Scripts/python.exe" "$RAIZ/.venv/bin/python"; do
+  if [ -x "$PY" ]; then
+    "$PY" "$RAIZ/bin/cvoice-hook.py" "$@" 2>/dev/null || true
+    exit 0
+  fi
+done
 exit 0
