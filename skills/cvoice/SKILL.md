@@ -13,7 +13,9 @@ existe desde a instalação — antes mesmo de haver ambiente — então o camin
 sempre o mesmo. Descubra uma vez por sessão e guarde:
 
 ```bash
-PL=$(ls -d ~/.claude/plugins/cache/*/claudinho-voice/*/ 2>/dev/null | head -1)
+# Ao atualizar o plugin, a pasta da versão antiga FICA no cache. Nunca pegue a
+# primeira que o ls devolver: a mais recente que tenha o lançador é a instalada.
+PL=$(ls -dt ~/.claude/plugins/cache/*/claudinho-voice/*/ 2>/dev/null | while read -r d; do [ -e "$d/bin/cvoice.cmd" ] && { echo "$d"; break; }; done)
 case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) CV="$PL/bin/cvoice.cmd" ;; *) CV="$PL/bin/cvoice" ;; esac
 # clone manual, fora do plugin: PL é a raiz do projeto
 ```
