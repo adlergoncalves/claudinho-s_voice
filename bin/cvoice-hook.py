@@ -38,6 +38,42 @@ def _preparar_caminho() -> None:
         sys.path.insert(0, str(libs))
 
 
+MARCA_DE_PREPARO = RAIZ / ".preparando"
+
+
+def _preparar_em_segundo_plano() -> None:
+    """Dispara a preparação da instalação e devolve o controle na hora.
+
+    Numa instalação nova não há ambiente virtual nem pesos de voz, e criar os
+    dois leva minutos. O hook não pode esperar por isso — ele roda a cada
+    ferramenta e precisa devolver em milissegundos. Então solta o preparo em
+    segundo plano e sai: esta leitura se perde, as próximas funcionam.
+
+    A marca no disco evita que cada hook do turno dispare um preparo novo.
+    """
+    if MARCA_DE_PREPARO.exists():
+        return
+    try:
+        import subprocess
+        import time
+
+        MARCA_DE_PREPARO.write_text(str(time.time()), encoding="utf-8")
+        criacao = 0
+        if sys.platform == "win32":
+            criacao = subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS
+        subprocess.Popen(
+            [sys.executable, "-m", "claudinho_voice.preparar_ambiente"],
+            cwd=str(RAIZ),
+            creationflags=criacao,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            close_fds=True,
+        )
+    except Exception:
+        pass
+
+
 HOOKS = {
     "stop": "claudinho_voice.hook",
     "prompt": "claudinho_voice.hook_prompt",
@@ -53,6 +89,12 @@ def main() -> int:
 
     try:
         _preparar_caminho()
+
+        # instalação nova: sem venv, nada do projeto importa. Prepara e sai.
+        if not (RAIZ / ".venv" / "pyvenv.cfg").exists():
+            _preparar_em_segundo_plano()
+            return 0
+
         import importlib
 
         return importlib.import_module(modulo).main()

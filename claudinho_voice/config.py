@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import time
 from dataclasses import dataclass, asdict
 from pathlib import Path
@@ -27,19 +28,23 @@ PASTA_TMP = PASTA_USUARIO / "tmp"
 @dataclass
 class Config:
     # --- motor de voz ---
-    motor: str = "pocket"
+    motor: str = "piper"
     """Qual modelo fala. Aceita um atalho dos motores que vêm no projeto
-    ("pocket", "kokoro") ou o caminho completo de qualquer classe que implemente
-    MotorDeVoz, como "meupacote.xtts:MotorXTTS". Trocar aqui não exige mudar
-    mais nada."""
+    ("piper", "kokoro", "pocket") ou o caminho completo de qualquer classe que
+    implemente MotorDeVoz, como "meupacote.xtts:MotorXTTS". Trocar aqui não
+    exige mudar mais nada."""
 
     # --- modelo ---
     idioma: str = "portuguese"
     """Variante do Pocket TTS. 'portuguese' (6 camadas, RTF 0.25) é o padrão;
     'portuguese_24l' é o preview de 24 camadas (RTF 0.73, ainda não destilado)."""
 
-    voz: str = "rafael"
-    """Voz padrão do português no Pocket TTS."""
+    voz: str = "jeff"
+    """Voz padrão. Uma das pt-BR do Piper, gravadas por falantes brasileiros.
+
+    O padrão precisa ser uma voz que o motor padrão saiba baixar: numa
+    instalação nova é ele que o preparo vai buscar, e um nome órfão faz a
+    primeira execução falhar sem explicação."""
 
     threads: int = 4
     """Núcleos usados pelo torch. Medido no i7-13700T (8P+8E): 4 threads é o ponto
@@ -56,7 +61,7 @@ class Config:
     porta: int = 8765
 
     # --- ritmo ---
-    palavras_por_minuto: int = 170
+    palavras_por_minuto: int = 0
     """Velocidade da fala. O Pocket/rafael sai a ~258, quase o dobro do
     confortável (audiolivro fica em 150, conversa normal em 130). O ajuste
     estica o tempo sem mexer no tom (WSOLA), custa ~0,1 s por frase.
@@ -70,7 +75,7 @@ class Config:
     curso — diferente de ``teto_ppm``, que entra na geração e só aparece na
     frase seguinte."""
 
-    teto_ppm: float = 180.0
+    teto_ppm: float = 0.0
     """Teto de ritmo por frase, em palavras por minuto. 0 desliga.
 
     Diferente de ``palavras_por_minuto``, que mira todas as frases num alvo
@@ -87,17 +92,17 @@ class Config:
     """Tira o silêncio que vem colado nas pontas de cada frase (~0,23 s no fim),
     para a pausa entre frases ser só a nossa, previsível."""
 
-    pausa_entre_frases_s: float = 0.12
+    pausa_entre_frases_s: float = 0.10
     """Respiro entre frases da mesma leitura."""
 
-    pausa_entre_paragrafos_s: float = 0.45
+    pausa_entre_paragrafos_s: float = 0.22
     """Respiro maior quando muda de parágrafo — dá o contorno do texto ao ouvido."""
 
     # --- leitura ---
     pausa_entre_itens_s: float = 0.35
     """Silêncio inserido entre um item da fila e o próximo."""
 
-    aquecimento: str = "Atenção."
+    aquecimento: str = ""
     """Prefixo curto falado antes de cada item. O Pocket mastiga as duas primeiras
     palavras de cada geração; o prefixo absorve esse defeito e é descartado do áudio
     quando ``descartar_aquecimento`` está ligado."""
@@ -133,15 +138,52 @@ class Config:
         return cfg
 
 
-def preparar_ambiente_ssl() -> None:
-    """Aponta o Python para o bundle de CA que inclui o certificado do antivírus.
+def _bundle_com_ca_do_sistema() -> Path | None:
+    """Monta um bundle de CA somando o ``certifi`` às raízes do Windows.
 
-    O Kaspersky Endpoint Security intercepta TLS nesta máquina, então o ``certifi``
-    puro falha ao baixar os pesos do Hugging Face. ``certs/ca-bundle.pem`` é gerado
-    pelo ``install.ps1``; sem ele seguimos com o padrão do sistema.
+    Antivírus corporativo (Kaspersky, Zscaler, Netskope e afins) intercepta TLS
+    com um certificado próprio, que existe no repositório do Windows mas não no
+    ``certifi``. O download dos pesos falha com ``CERTIFICATE_VERIFY_FAILED`` e
+    a instalação nova nunca sai do lugar — num repositório público não dá para
+    supor que quem instala saiba montar o bundle na mão.
+
+    Gerado uma vez em ``~/.claudinho-voice/certs/``: fica fora do projeto, para
+    sobreviver a reinstalação, e fora do repositório, porque é específico da
+    máquina.
     """
-    bundle = Path(__file__).resolve().parent.parent / "certs" / "ca-bundle.pem"
-    if bundle.exists():
+    if sys.platform != "win32":
+        return None
+
+    destino = PASTA_USUARIO / "certs" / "ca-bundle.pem"
+    if destino.exists():
+        return destino
+
+    try:
+        import ssl
+
+        import certifi
+
+        partes = [Path(certifi.where()).read_text(encoding="utf-8")]
+        for loja in ("ROOT", "CA"):
+            for der, _, _ in ssl.enum_certificates(loja):
+                partes.append(ssl.DER_cert_to_PEM_cert(der))
+
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        destino.write_text(chr(10).join(partes), encoding="utf-8")
+        return destino
+    except Exception:
+        return None
+
+
+def preparar_ambiente_ssl() -> None:
+    """Aponta o Python para um bundle de CA que o antivírus não derrube.
+
+    Ordem: o bundle do projeto, se alguém já montou um; senão, um montado a
+    partir das raízes do próprio Windows.
+    """
+    do_projeto = Path(__file__).resolve().parent.parent / "certs" / "ca-bundle.pem"
+    bundle = do_projeto if do_projeto.exists() else _bundle_com_ca_do_sistema()
+    if bundle:
         os.environ.setdefault("SSL_CERT_FILE", str(bundle))
         os.environ.setdefault("REQUESTS_CA_BUNDLE", str(bundle))
 

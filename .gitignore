@@ -11,3 +11,6 @@ certs/
 # O que vale é o script que reproduz a medida, não o resultado de uma execução.
 eval/audio/
 eval/resultados/
+
+# marca de que o preparo da instalação já foi disparado
+.preparando
