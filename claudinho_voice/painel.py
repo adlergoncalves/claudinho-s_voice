@@ -25,7 +25,7 @@ ARQUIVO_HTML = Path(__file__).with_name("painel.html")
 ARQUIVO_ICONE = Path(__file__).resolve().parent.parent / "claudinho.ico"
 
 LARGURA = 348
-ALTURA = 400
+ALTURA = 440
 
 
 class Ponte:
@@ -226,6 +226,24 @@ def _garantir_servico(espera_s: float = 90.0) -> None:
     log.warning("o serviço não respondeu a tempo; a janela abre assim mesmo")
 
 
+def _dar_identidade_ao_processo() -> None:
+    """Dá à janela um botão próprio na barra de tarefas do Windows.
+
+    A barra agrupa e ilustra janelas pelo *AppUserModelID*; sem um explícito,
+    todo processo ``pythonw.exe`` cai no mesmo grupo e herda o ícone do
+    Python — e o ícone posto na janela é ignorado. Precisa acontecer antes de
+    a janela ser criada.
+    """
+    if __import__("sys").platform != "win32":
+        return
+    try:
+        import ctypes
+
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("ClaudinhoVoice.Painel")
+    except Exception:
+        pass
+
+
 def _trazer_para_a_frente() -> bool:
     """Se já houver um painel aberto, mostra aquele e diz que não cabe outro.
 
@@ -255,12 +273,17 @@ def abrir(sempre_no_topo: bool = True) -> None:
     if _trazer_para_a_frente():
         return
 
+    _dar_identidade_ao_processo()
     _garantir_servico()
 
     ponte = Ponte()
+    # O HTML vai INLINE, não por URL: o WebView2 guarda o file:// no perfil
+    # (%APPDATA%\pywebview) e continua servindo a versão antiga depois de uma
+    # atualização — foi assim que botões novos ficaram invisíveis e o orbe
+    # apareceu como a onda velha. Texto na mão não tem cache possível.
     janela = webview.create_window(
         "Claudinho's Voice",
-        str(ARQUIVO_HTML),
+        html=ARQUIVO_HTML.read_text(encoding="utf-8"),
         js_api=ponte,
         width=LARGURA,
         height=ALTURA,
@@ -291,30 +314,44 @@ def abrir(sempre_no_topo: bool = True) -> None:
     def _trocar_icone() -> None:
         """Põe o ícone do projeto na janela e na barra de tarefas.
 
-        Sem isto a janela herda o ícone genérico do Python — o painel aparece
-        na barra como se fosse um script solto.
+        Sem isto a janela herda o ícone do Python — o painel aparece na barra
+        como se fosse um script solto. Tenta até a janela existir (o WebView2
+        leva um tempo variável para criá-la; um timer fixo chegava cedo demais
+        e não achava nada) e cobre os três tamanhos que o Windows consulta,
+        mais o ícone da classe, que a barra usa quando agrupa.
         """
-        if not ARQUIVO_ICONE.exists():
+        if not ARQUIVO_ICONE.exists() or __import__("sys").platform != "win32":
             return
         try:
             import ctypes
+            import time as _t
 
-            u32, k32 = ctypes.windll.user32, ctypes.windll.kernel32
-            alvo = u32.FindWindowW(None, "Claudinho's Voice")
+            u32 = ctypes.windll.user32
+            alvo = 0
+            for _ in range(80):  # até 20 s
+                alvo = u32.FindWindowW(None, "Claudinho's Voice")
+                if alvo:
+                    break
+                _t.sleep(0.25)
             if not alvo:
                 return
             LR = 0x00000010 | 0x00008000  # LR_LOADFROMFILE | LR_SHARED
-            for tipo, tam in ((1, 32), (0, 16)):  # ICON_BIG, ICON_SMALL
-                h = u32.LoadImageW(None, str(ARQUIVO_ICONE), 1, tam, tam, LR)
+            grande = u32.LoadImageW(None, str(ARQUIVO_ICONE), 1, 32, 32, LR)
+            pequeno = u32.LoadImageW(None, str(ARQUIVO_ICONE), 1, 16, 16, LR)
+            for tipo, h in ((1, grande), (0, pequeno), (2, pequeno)):  # BIG, SMALL, SMALL2
                 if h:
                     u32.SendMessageW(alvo, 0x0080, tipo, h)  # WM_SETICON
-            del k32
+            # GCLP_HICON = -14, GCLP_HICONSM = -34
+            if grande:
+                u32.SetClassLongPtrW(alvo, -14, grande)
+            if pequeno:
+                u32.SetClassLongPtrW(alvo, -34, pequeno)
         except Exception:
             pass  # ícone é cosmético: nunca pode derrubar a janela
 
     import threading
 
-    threading.Timer(1.5, _trocar_icone).start()
+    threading.Thread(target=_trocar_icone, name="cv-icone", daemon=True).start()
     webview.start(private_mode=False)
     del janela
 

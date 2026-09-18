@@ -358,7 +358,7 @@ def volume(pedido: PedidoVolume) -> dict:
     """Muda o volume na hora — vale já na próxima frase."""
     motor = obter_motor()
     motor.cfg.volume = limitar_volume(pedido.volume)
-    motor.cfg.salvar()
+    # sem salvar: volume é do momento (ver Config.volume)
     return {"ok": True, "volume": motor.cfg.volume}
 
 

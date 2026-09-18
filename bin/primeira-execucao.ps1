@@ -25,6 +25,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 try { [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false) } catch {}
+$env:PYTHONUTF8 = '1'   # os Pythons do preparo (e os filhos deles) escrevem UTF-8 também por pipe
 
 function Diz([string]$t)   { Write-Host $t }
 function Falha([string]$t) { Write-Host "erro: $t"; exit 1 }

@@ -1,8 +1,10 @@
-"""Hook ``PreToolUse``: fala uma frase de espera enquanto o Claude trabalha.
+"""Hook ``PreToolUse``: narra o que o Claude escreveu enquanto trabalha.
 
 Numa conversa por voz, ficar mudo por trinta segundos parece travamento. Este
 hook roda antes de cada ferramenta e, se a sessão está em modo voz e já passou
-tempo suficiente desde a última mensagem, pede ao serviço uma frase curta.
+tempo suficiente desde a última mensagem, manda ao serviço o texto que o
+Claude acabou de escrever antes de chamar a ferramenta — uma narração
+perecível: se envelhecer na fila, o serviço descarta.
 
 Quem decide se vale falar é o serviço (ele sabe se algo está tocando e quando
 falou por último); aqui só medimos há quanto tempo o turno começou.
@@ -139,6 +141,8 @@ def main() -> int:
         texto, uuid = texto_novo_do_assistente(
             str(entrada.get("transcript_path") or ""), _ultimo_falado(session_id)
         )
+        # sem texto novo, fica em silêncio: as frases de espera pré-gravadas
+        # ("deixa eu ver aqui") saíram a pedido — só o que o Claude escreveu vale
         if texto:
             _marcar_falado(session_id, uuid)
             httpx.post(
@@ -146,13 +150,6 @@ def main() -> int:
                 json={"texto": texto},
                 timeout=1.5,
             )
-            return 0
-
-        httpx.post(
-            f"http://{cfg.host}:{cfg.porta}/preencher",
-            json={"segundos_esperando": esperando},
-            timeout=1.5,
-        )
     except Exception:
         return 0  # nunca atrapalhar a execução da ferramenta
     return 0

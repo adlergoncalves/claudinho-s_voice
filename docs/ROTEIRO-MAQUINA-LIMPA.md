@@ -39,19 +39,24 @@ Abra o VS Code, abra um chat do Claude Code e mande **uma** destas mensagens:
 ```
 ou, em linguagem natural: `ativa a voz` · `cvoice` · `claudinho's voice: on`.
 
-**Esperado — primeira execução (leva minutos; a saída aparece passo a passo):**
+**Esperado — primeira execução (3 a 5 minutos com Python já instalado; ~540 MB de download; a
+saída aparece passo a passo, em ordem e com acento):**
 
 1. Diz qual Python vai usar. Se não houver nenhum utilizável, diz que vai instalar (`uv` +
    CPython 3.12) e instala. Se der erro de rede aqui, a mensagem nomeia o download que falhou.
 2. Cria o ambiente (`.venv` dentro da pasta do plugin) e instala as dependências, **incluindo o
-   painel** (`pywebview`).
-3. Baixa a voz padrão **jeff** (`pt_BR-jeff-medium.onnx`, ~63 MB) para
-   `%USERPROFILE%\.claudinho-voice\modelos\piper\`.
-4. Sobe o serviço de voz e **abre o painel** (janela pequena, fica por cima).
-5. Liga a leitura nesta sessão ("voz ligada nesta sessão"). Como esta sessão nasceu **depois**
+   painel** (`pywebview`) e o **Kokoro**.
+3. Baixa as **três vozes** pt-BR do Piper (jeff, cadu, faber — ~63 MB cada) e o modelo
+   **Kokoro** (~350 MB) para `%USERPROFILE%\.claudinho-voice\modelos\`. Se o Kokoro falhar,
+   é aviso, não erro: o Piper funciona sem ele.
+4. **Toca uma frase de teste** ("Claudinho's Voice pronto…") — se não ouvir, pare aqui: o
+   problema é dispositivo de saída ou volume do sistema, não o plugin.
+5. Sobe o serviço de voz e **abre o painel** (janela com o orbe, fica por cima).
+6. Liga a leitura nesta sessão ("voz ligada nesta sessão"). Como esta sessão nasceu **depois**
    da instalação, **não deve aparecer aviso de hook** nem pedido de reinício — quando o hook
    está OK, o comando fica calado sobre ele.
-6. O Claude responde uma linha curta de confirmação — e **essa resposta já sai falada**.
+7. O Claude responde uma linha curta de confirmação — e **essa resposta já sai falada**, sem
+   comer as primeiras palavras.
 
 **Não é bug:**
 - Se o plugin instalou o Python: o `uv` grava um `python3.12.exe` em `%USERPROFILE%\.local\bin`
@@ -69,6 +74,9 @@ ou, em linguagem natural: `ativa a voz` · `cvoice` · `claudinho's voice: on`.
 - Terminar dizendo "voz ligada" e a resposta seguinte não ser lida.
 - Pedir para reiniciar o Claude Code nesta sessão (ela nasceu depois da instalação).
 - Painel não aparecer. Se acontecer, olhe `%USERPROFILE%\.claudinho-voice\painel.log`.
+- Painel abrir com a onda de barras antiga em vez do orbe (HTML em cache — não deve mais ocorrer).
+- Ícone do Python na barra de tarefas em vez do ícone do Claudinho.
+- Serviço subir sem som com o deslizante de volume no zero (volume não é mais gravado).
 
 ## Passo 3 — usar
 
@@ -96,7 +104,8 @@ instalar ou baixar algo.
 - Saída completa do passo 2 (copiar do chat).
 - `%USERPROFILE%\.claudinho-voice\hook.log` após o passo 3 — deve ter linhas
   `stop enfileirando N chars` seguidas de `stop ok`.
-- `dir %USERPROFILE%\.claudinho-voice\modelos\piper` — só `pt_BR-jeff-medium.onnx` e `.json`.
+- `dir %USERPROFILE%\.claudinho-voice\modelos\piper` — as três vozes (`jeff`, `cadu`, `faber`) com
+  seus `.json`; `modelos\kokoro` com `kokoro-v1.0.onnx` e `voices-v1.0.bin`.
 - Se houver falha: `%USERPROFILE%\.claudinho-voice\claudinho-voice.log` e `painel.log`.
 
 ## O que este roteiro não prova

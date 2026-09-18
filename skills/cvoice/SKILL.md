@@ -115,16 +115,14 @@ Quando o pedido for claramente sobre o **conteúdo** ("me explica de novo aquilo
 do KYC"), não use `repetir` — responda você, com suas palavras. `repetir` é para
 ouvir de novo o mesmo áudio.
 
-## Frases de espera
+## Narração enquanto você trabalha
 
-Com o modo voz ligado, a pessoa ouve uma frase curta ("deixa eu ver aqui", "ainda
-estou nisso") quando você passa mais de 3,5 segundos usando ferramentas sem
-falar. É automático, feito por hook, com áudio pré-gerado — não chame nada nem
-escreva essas frases na resposta.
-
-Se ele quiser trocá-las, elas estão em `claudinho_voice/preenchimentos.py` e
-precisam ser regeradas depois: `"$CV" estado` sobe o serviço, e daí
-`POST /gerar-preenchimentos?forcar=true`.
+Com o modo voz ligado, o texto que você escreve **entre** chamadas de
+ferramenta é narrado enquanto a ferramenta roda — se você passou mais de 3,5
+segundos trabalhando. É automático, feito por hook; não chame nada. A narração
+é perecível: se a fila atrasar, o serviço descarta o que envelheceu, então
+escreva esses textos intermediários curtos e no presente ("abrindo o arquivo",
+"rodando os testes"). Não existem frases de espera pré-gravadas.
 
 ## Interrupção
 

@@ -55,6 +55,10 @@ class Config:
     """Nome (ou parte do nome) do dispositivo de saída. None = padrão do sistema."""
 
     volume: float = 1.0
+    """Volume da reprodução. É do MOMENTO, não da configuração: nunca vai ao
+    arquivo nem vem dele. Um mudo acidental que virasse preferência gravada
+    fazia o serviço subir calado — "a voz inicia mas não sai som" — e ninguém
+    olha o deslizante quando o sintoma parece travamento."""
 
     # --- serviço ---
     host: str = "127.0.0.1"
@@ -88,6 +92,17 @@ class Config:
     teto não arrasta a voz como o alvo fixo de 150 ppm arrastava — ele só freia
     a frase que passou, e a maioria passa perto."""
 
+    silencio_inicial_s: float = 0.3
+    """Silêncio tocado ANTES da primeira frase de uma leitura que começa do nada.
+
+    Sem ele as primeiras palavras eram comidas: o dispositivo de saída acorda
+    (fone Bluetooth, USB, WASAPI depois de ocioso) alguns décimos de segundo
+    depois do primeiro áudio, e o que saiu nesse intervalo se perde. Como o
+    silêncio das bordas é aparado, a fala começava exatamente no primeiro
+    fonema — nada sobrava para absorver a subida. 0,3 s é imperceptível como
+    espera e cobre os dispositivos comuns; só vale após ociosidade, não entre
+    frases."""
+
     aparar_silencio_das_bordas: bool = True
     """Tira o silêncio que vem colado nas pontas de cada frase (~0,23 s no fim),
     para a pausa entre frases ser só a nossa, previsível."""
@@ -118,10 +133,14 @@ class Config:
     max_caracteres_resposta: int = 8000
     """Resposta do Claude acima disto é lida só até aqui (~7 min de fala)."""
 
+    NAO_PERSISTE = ("volume",)
+    """Campos de momento, fora do arquivo nos dois sentidos."""
+
     def salvar(self, caminho: Path = ARQUIVO_CONFIG) -> None:
         caminho.parent.mkdir(parents=True, exist_ok=True)
+        dados = {k: v for k, v in asdict(self).items() if k not in self.NAO_PERSISTE}
         caminho.write_text(
-            json.dumps(asdict(self), indent=2, ensure_ascii=False), encoding="utf-8"
+            json.dumps(dados, indent=2, ensure_ascii=False), encoding="utf-8"
         )
 
     @classmethod
@@ -133,7 +152,8 @@ class Config:
             except (json.JSONDecodeError, OSError):
                 return cfg
             for chave, valor in dados.items():
-                if hasattr(cfg, chave):
+                # arquivos antigos podem trazer volume 0.0 gravado: ignorar
+                if hasattr(cfg, chave) and chave not in cls.NAO_PERSISTE:
                     setattr(cfg, chave, valor)
         return cfg
 

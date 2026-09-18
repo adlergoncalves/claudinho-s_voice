@@ -5,7 +5,7 @@
 <title>Claudinho's Voice</title>
 <style>
   /* Material da Apple (profundidade por camada, tipografia do sistema, movimento
-     curto) com o pulso vivo de um assistente: a onda reage à fala de verdade. */
+     curto) com o pulso vivo de um assistente: o orbe reage à fala de verdade. */
   :root{
     --fundo:#16161A;            /* opaco: o WebView2 não compõe com a mesa */
     --camada:#1F1F24;
@@ -14,8 +14,10 @@
     --rotulo:#F5F5F7;
     --rotulo-2:rgba(235,235,245,.60);
     --rotulo-3:rgba(235,235,245,.30);
-    --vivo:#32D74B;
-    --espera:#FF9F0A;
+    --vivo:#32D74B;             /* falando */
+    --ouvido:#5AC8FA;           /* ouvindo (reservado ao STT) */
+    --espera:#FF9F0A;           /* pausado */
+    --cor:220,225,240;          /* cor do orbe em repouso, em RGB para alfa */
     --trilho:rgba(255,255,255,.14);
     --mola:cubic-bezier(.32,.72,0,1);
   }
@@ -34,13 +36,16 @@
       radial-gradient(120% 80% at 50% -10%, rgba(88,140,255,.10), transparent 60%),
       var(--fundo);
   }
-  /* brilho que respira sob a onda enquanto fala */
+  /* brilho que respira sob o orbe enquanto fala ou ouve */
   .janela::after{
-    content:""; position:absolute; inset:-40% -20% auto; height:180px;
-    background:radial-gradient(50% 60% at 50% 50%, rgba(50,215,75,.16), transparent 70%);
-    opacity:0; transition:opacity .6s ease; pointer-events:none;
+    content:""; position:absolute; inset:-30% -20% auto; height:220px;
+    background:radial-gradient(50% 60% at 50% 50%, rgba(var(--cor),.18), transparent 70%);
+    opacity:0; transition:opacity .6s ease, background .6s ease; pointer-events:none;
   }
-  .falando.janela::after{opacity:1; animation:respira 3.4s ease-in-out infinite}
+  .falando.janela::after, .ouvindo.janela::after{opacity:1; animation:respira 3.4s ease-in-out infinite}
+  .falando{--cor:50,215,75}
+  .ouvindo{--cor:90,200,250}
+  .pausado{--cor:255,159,10}
   @keyframes respira{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
 
   /* ── barra ───────────────────────────────────────── */
@@ -50,8 +55,8 @@
   }
   .luz{width:7px; height:7px; border-radius:50%; background:var(--rotulo-3);
     transition:background .3s, box-shadow .3s; flex-shrink:0}
-  .falando .luz{background:var(--vivo); box-shadow:0 0 0 3.5px rgba(50,215,75,.16)}
-  .pausado .luz{background:var(--espera); box-shadow:0 0 0 3.5px rgba(255,159,10,.16)}
+  .falando .luz, .ouvindo .luz, .pausado .luz{
+    background:rgb(var(--cor)); box-shadow:0 0 0 3.5px rgba(var(--cor),.16)}
   .marca{
     font-size:11px; font-weight:600; color:var(--rotulo-2);
     flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
@@ -87,37 +92,73 @@
   .vendo-ajustes .face.tocador{transform:translateX(-26%); opacity:0; pointer-events:none}
   .vendo-ajustes .face.ajustes{transform:translateX(0); opacity:1}
 
-  /* ── onda ────────────────────────────────────────── */
-  .onda{
-    display:flex; align-items:center; justify-content:center; gap:3px;
-    height:36px; margin:0;
+  /* ── orbe ────────────────────────────────────────── */
+  /* Um núcleo e três anéis, como o assistente de um filme: em repouso respira
+     devagar; falando, os anéis nascem no núcleo e se expandem (o som sai);
+     ouvindo, nascem fora e se contraem (o som entra) — estado reservado ao
+     STT, sem gatilho ainda; pausado, congela em âmbar. Tudo por CSS: cor e
+     direção trocam com a classe da janela. */
+  .orbe{
+    position:relative; height:118px; display:grid; place-items:center;
+    --tam:30px;
   }
-  .onda i{
-    width:3px; height:3px; border-radius:2px; background:var(--rotulo-3);
-    opacity:.45; transition:background .4s, height .4s var(--mola), opacity .4s;
+  .orbe > *{position:absolute; border-radius:50%; left:50%; top:50%;
+    transform:translate(-50%,-50%)}
+  .nucleo{
+    width:var(--tam); height:var(--tam);
+    background:
+      radial-gradient(circle at 38% 34%, rgba(255,255,255,.85), transparent 42%),
+      radial-gradient(circle, rgba(var(--cor),.95) 0%, rgba(var(--cor),.55) 60%, rgba(var(--cor),.15) 100%);
+    box-shadow:0 0 18px rgba(var(--cor),.35), 0 0 46px rgba(var(--cor),.18);
+    transition:background .6s, box-shadow .6s, opacity .6s;
+    animation:respira-nucleo 5.2s ease-in-out infinite;
+    opacity:.55;
   }
-  .falando .onda i, .pausado .onda i{opacity:1}
-  .falando .onda i{
-    background:linear-gradient(180deg,#6EE7A8,var(--vivo));
-    animation:onda 1.1s ease-in-out infinite;
+  .anel{
+    width:calc(var(--tam) * var(--k)); height:calc(var(--tam) * var(--k));
+    border:1px solid rgba(var(--cor),.55);
+    box-shadow:0 0 12px rgba(var(--cor),.10), inset 0 0 12px rgba(var(--cor),.06);
+    opacity:var(--op,.12); transition:border-color .6s, opacity .6s;
   }
-  .pausado .onda i{background:var(--espera); opacity:.5}
-  @keyframes onda{
-    0%,100%{height:4px}
-    50%{height:var(--alto,20px)}
+  .anel.a1{--k:2.0; --op:.22}
+  .anel.a2{--k:2.8; --op:.14}
+  .anel.a3{--k:3.6; --op:.08}
+  @keyframes respira-nucleo{0%,100%{transform:translate(-50%,-50%) scale(1)}
+    50%{transform:translate(-50%,-50%) scale(1.06)}}
+
+  /* falando: o núcleo bate com a fala, os anéis saem dele e se dissolvem */
+  .falando .nucleo{opacity:1; animation:bate 1.15s ease-in-out infinite}
+  .falando .anel{animation:sai 1.9s cubic-bezier(.2,.6,.3,1) infinite; opacity:0}
+  .falando .anel.a1{animation-delay:0s}
+  .falando .anel.a2{animation-delay:-.63s}
+  .falando .anel.a3{animation-delay:-1.27s}
+  @keyframes bate{
+    0%,100%{transform:translate(-50%,-50%) scale(.92)}
+    22%{transform:translate(-50%,-50%) scale(1.14)}
+    48%{transform:translate(-50%,-50%) scale(.98)}
+    70%{transform:translate(-50%,-50%) scale(1.10)}
   }
-  .onda i:nth-child(1){--alto:11px; animation-delay:-.9s}
-  .onda i:nth-child(2){--alto:19px; animation-delay:-.75s}
-  .onda i:nth-child(3){--alto:27px; animation-delay:-.45s}
-  .onda i:nth-child(4){--alto:14px; animation-delay:-.6s}
-  .onda i:nth-child(5){--alto:24px; animation-delay:-.2s}
-  .onda i:nth-child(6){--alto:30px; animation-delay:-.05s}
-  .onda i:nth-child(7){--alto:16px; animation-delay:-.35s}
-  .onda i:nth-child(8){--alto:22px; animation-delay:-.55s}
-  .onda i:nth-child(9){--alto:12px; animation-delay:-.8s}
-  .onda i:nth-child(10){--alto:26px; animation-delay:-.15s}
-  .onda i:nth-child(11){--alto:18px; animation-delay:-.65s}
-  .onda i:nth-child(12){--alto:9px;  animation-delay:-.95s}
+  @keyframes sai{
+    0%{transform:translate(-50%,-50%) scale(.42); opacity:0}
+    12%{opacity:.7}
+    100%{transform:translate(-50%,-50%) scale(1.15); opacity:0}
+  }
+
+  /* ouvindo: o inverso — os anéis vêm de fora e convergem no núcleo, que fica firme */
+  .ouvindo .nucleo{opacity:1; animation:respira-nucleo 2.4s ease-in-out infinite}
+  .ouvindo .anel{animation:entra 2.2s cubic-bezier(.4,0,.6,1) infinite; opacity:0}
+  .ouvindo .anel.a1{animation-delay:0s}
+  .ouvindo .anel.a2{animation-delay:-.73s}
+  .ouvindo .anel.a3{animation-delay:-1.47s}
+  @keyframes entra{
+    0%{transform:translate(-50%,-50%) scale(1.15); opacity:0}
+    15%{opacity:.6}
+    100%{transform:translate(-50%,-50%) scale(.45); opacity:0}
+  }
+
+  /* pausado: tudo congela onde está, em âmbar */
+  .pausado .nucleo, .pausado .anel{animation-play-state:paused; opacity:.7}
+  .pausado .anel.a1{opacity:.35} .pausado .anel.a2{opacity:.2} .pausado .anel.a3{opacity:.1}
 
   /* ── tocador ─────────────────────────────────────── */
   .titulo{
@@ -252,8 +293,9 @@
   <div class="faces">
 
     <div class="face tocador" style="justify-content:space-evenly">
-      <div class="onda">
-        <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+      <div class="orbe" aria-hidden="true">
+        <span class="anel a3"></span><span class="anel a2"></span><span class="anel a1"></span>
+        <span class="nucleo"></span>
       </div>
 
       <div class="titulo" id="titulo">Em silêncio</div>
@@ -371,15 +413,20 @@ function pintar(e){
   // classList em vez de className: sobrescrever apagava a face aberta
   janela.classList.toggle("falando", lendo && !pausado);
   janela.classList.toggle("pausado", pausado);
+  // reservado ao STT: quando o serviço passar a informar `ouvindo`, o orbe
+  // já sabe se desenhar — anéis convergindo, em ciano
+  janela.classList.toggle("ouvindo", !!e.ouvindo && !lendo);
 
   const titulo = (e.titulo_atual || "").trim();
   // "resposta" e "narração" são rótulos internos da fila, não título de leitura
   const generico = !titulo || titulo === "resposta" || titulo === "narração";
-  $("titulo").textContent = generico ? (lendo ? "Claudinho falando" : "Em silêncio") : titulo;
+  $("titulo").textContent = generico
+    ? (lendo ? "Claudinho falando" : (e.ouvindo ? "Claudinho ouvindo" : "Em silêncio")) : titulo;
 
   const total = e.total_frases || 0, atual = e.frase_atual || 0;
   const naFila = e.itens_na_fila || 0;
-  $("sub").textContent = !lendo ? "nada sendo lido"
+  $("sub").textContent = e.ouvindo && !lendo ? "ouvindo"
+    : !lendo ? "nada sendo lido"
     : pausado ? "pausado"
     : naFila ? `falando · ${naFila} na fila` : "falando";
 

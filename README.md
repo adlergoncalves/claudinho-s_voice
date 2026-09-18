@@ -20,22 +20,21 @@ A escolha do Piper foi medida — ver `eval/comparar_motores.py`.
 /plugin install claudinho-voice@claudinho
 ```
 
-A skill e os três hooks ligam sozinhos. Diga "ativa a voz": na primeira vez o
-ambiente é preparado e a voz baixada (~63 MB) — uma vez só, alguns minutos.
-Nas seguintes, ligar é instantâneo.
+A skill e os três hooks ligam sozinhos. Abra uma janela nova do Claude Code e
+diga "ativa a voz": na primeira vez a instalação se prepara inteira — acha ou
+instala um Python, cria o ambiente, baixa as três vozes pt-BR e o modelo Kokoro
+(~540 MB no total) e **toca uma frase de teste** — uma vez só, alguns minutos.
+Nas seguintes, ligar é instantâneo, e o painel abre junto.
 
 ### Manualmente (clone)
 
 ```powershell
-pwsh -File install.ps1
+powershell -File install.ps1
 ```
 
-O instalador cria a venv, instala as dependências, monta um bundle de
-certificados (necessário quando um antivírus corporativo intercepta TLS), baixa
-os pesos da voz, instala a skill `/cvoice`, registra os hooks no Claude Code e
-cria o atalho do painel.
-
-Para pular partes: `-SemHook`, `-SemSkill`, `-SemInicializar`.
+É o mesmo preparo do plugin, do zero ao áudio tocando. Não cria atalho, não
+registra nada no Claude Code nem no Windows; o executável fica em
+`.venv\Scripts\cvoice.exe`.
 
 ## Uso
 

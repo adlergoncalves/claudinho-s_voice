@@ -54,6 +54,12 @@ def _preparar_agora() -> int:
     ``cvoice`` só nasce depois do preparo, e quem instala o plugin precisa de
     alguma porta para bater na primeira vez.
     """
+    # acento na saída, mesmo por pipe: sem isto o progresso sai "depend?ncias"
+    for fluxo in (sys.stdout, sys.stderr):
+        try:
+            fluxo.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, OSError):
+            pass
     _preparar_caminho()
     from claudinho_voice.preparar_ambiente import preparar
 

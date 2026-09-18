@@ -88,8 +88,10 @@ def instalar_dependencias() -> bool:
         # O extra "painel" entra junto, e não por capricho: o painel é a única
         # interface do leitor, e o lançador dele roda com janela escondida —
         # sem pywebview o import falha calado, nada abre e nenhum erro aparece.
+        # O "kokoro" também: o painel oferece trocar de modelo, e oferecer o
+        # que não está instalado é promessa quebrada.
         subprocess.run(
-            [str(python), "-m", "pip", "install", "--quiet", "-e", f"{RAIZ}[painel]"],
+            [str(python), "-m", "pip", "install", "--quiet", "-e", f"{RAIZ}[painel,kokoro]"],
             check=True,
             capture_output=True,
             timeout=1800,
@@ -140,6 +142,86 @@ def tudo_pronto() -> bool:
         return False
 
 
+def baixar_todas_as_vozes() -> bool:
+    """Baixa TODAS as vozes pt-BR do Piper, não só a padrão.
+
+    O painel deixa trocar de voz na hora; se só a padrão estivesse no disco, a
+    troca falharia na primeira vez que alguém a usasse — e falharia offline.
+    A padrão é obrigatória; as demais são melhor-esforço com aviso.
+    """
+    from .config import Config
+    from .motores.piper import VOZES, MotorPiper
+
+    padrao = Config.carregar().voz
+    tudo = True
+    for voz in [padrao] + [v for v in VOZES if v != padrao]:
+        if MotorPiper.instalado(voz):
+            continue
+        print(f"  voz {voz}...", flush=True)
+        try:
+            MotorPiper.baixar(voz)
+        except Exception as erro:
+            print(f"  aviso: não consegui baixar a voz '{voz}': {erro}", file=sys.stderr)
+            if voz == padrao:
+                return False
+            tudo = False
+    return tudo
+
+
+def baixar_kokoro() -> bool:
+    """Baixa os pesos do Kokoro (~350 MB), o segundo modelo do painel. Melhor-esforço."""
+    try:
+        from .motores.kokoro import MotorKokoro
+
+        if MotorKokoro.instalado():
+            return True
+        MotorKokoro.baixar()
+        return MotorKokoro.instalado()
+    except Exception as erro:
+        print(f"  aviso: Kokoro não baixado ({erro}); o Piper funciona sem ele", file=sys.stderr)
+        return False
+
+
+def testar_audio(texto: str = "Claudinho's Voice pronto. Se você está me ouvindo, a instalação terminou.") -> bool:
+    """Gera e TOCA uma frase, sem depender do serviço.
+
+    É a única prova de que a instalação funciona: modelo carregado, voz no
+    disco, dispositivo de saída respondendo. Fica na saída padrão do sistema.
+    """
+    import time
+
+    from .motor import Motor
+
+    try:
+        motor = Motor()
+        motor.iniciar()
+        motor.ler(texto, titulo="teste", prioridade=True)
+        limite = time.time() + 60
+        time.sleep(1.0)
+        while time.time() < limite:
+            e = motor.estado()
+            if not e.lendo and e.itens_na_fila == 0:
+                break
+            time.sleep(0.2)
+        motor.desligar()
+        return True
+    except Exception as erro:
+        print(f"não consegui tocar o áudio de teste: {erro}", file=sys.stderr)
+        return False
+
+
+def _no_venv(codigo: str, timeout: int) -> bool:
+    """Roda um trecho Python DENTRO do venv e diz se saiu com 0."""
+    try:
+        pronto = subprocess.run(
+            [str(_python_do_venv()), "-c", codigo], cwd=str(RAIZ), timeout=timeout
+        )
+        return pronto.returncode == 0
+    except Exception as erro:
+        print(f"falha ao executar no ambiente: {erro}", file=sys.stderr)
+        return False
+
+
 def preparar(verboso: bool = True, ao_andar=None) -> bool:
     """Deixa a instalação pronta para uso. Devolve se está tudo no lugar.
 
@@ -148,8 +230,11 @@ def preparar(verboso: bool = True, ao_andar=None) -> bool:
     """
 
     def diz(texto: str) -> None:
+        # flush: por pipe (é assim que o Claude Code lê) o stdout do pai fica
+        # bloqueado e as linhas dos subprocessos saem ANTES das nossas — o
+        # progresso aparecia fora de ordem
         if verboso:
-            print(texto)
+            print(texto, flush=True)
         if ao_andar:
             try:
                 ao_andar(texto)
@@ -169,27 +254,35 @@ def preparar(verboso: bool = True, ao_andar=None) -> bool:
     # roda no Python do sistema, que não tem httpx nem o resto — ele acabou de
     # instalar as dependências, mas não consegue usá-las sem reiniciar. Sem
     # isto o preparo terminava "com sucesso" e a voz nunca chegava.
-    diz("baixando a voz (~63 MB, uma vez só)...")
-    try:
-        pronto = subprocess.run(
-            [
-                str(_python_do_venv()),
-                "-c",
-                "from claudinho_voice.preparar_ambiente import baixar_voz;"
-                " raise SystemExit(0 if baixar_voz() else 1)",
-            ],
-            cwd=str(RAIZ),
-            capture_output=True,
-            timeout=1800,
-        )
-        if pronto.returncode != 0:
-            print(pronto.stderr.decode("utf-8", "replace")[-400:], file=sys.stderr)
-            return False
-    except Exception as erro:
-        print(f"não consegui baixar a voz: {erro}", file=sys.stderr)
+    diz("baixando as vozes do Piper (jeff, cadu, faber — ~63 MB cada, uma vez só)...")
+    if not _no_venv(
+        "from claudinho_voice.preparar_ambiente import baixar_todas_as_vozes;"
+        " raise SystemExit(0 if baixar_todas_as_vozes() else 1)",
+        timeout=2400,
+    ):
+        print("a voz padrão não foi baixada; sem ela nada fala", file=sys.stderr)
         return False
 
-    diz("pronto. Diga 'ativa a voz' no Claude Code, ou rode: cvoice testar")
+    diz("baixando o modelo Kokoro (~350 MB, uma vez só; opcional)...")
+    _no_venv(
+        "from claudinho_voice.preparar_ambiente import baixar_kokoro; baixar_kokoro()",
+        timeout=2400,
+    )
+
+    diz("testando o áudio — você deve ouvir uma frase curta...")
+    if not _no_venv(
+        "from claudinho_voice.preparar_ambiente import testar_audio;"
+        " raise SystemExit(0 if testar_audio() else 1)",
+        timeout=120,
+    ):
+        print(
+            "o áudio de teste não tocou; confira o dispositivo de saída "
+            "(cvoice dispositivos) e o volume do sistema",
+            file=sys.stderr,
+        )
+        return False
+
+    diz("pronto. Diga 'ativa a voz' no Claude Code.")
     return True
 
 

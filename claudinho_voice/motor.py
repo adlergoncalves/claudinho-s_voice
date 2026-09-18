@@ -135,6 +135,8 @@ class Motor:
         self._pronto = threading.Event()
         self._item_atual: Item | None = None
         """O que está sendo lido agora, para `navegar` poder recomeçar dele."""
+        self._ultimo_som = 0.0
+        """Quando o último bloco de áudio foi escrito na saída (perf_counter)."""
 
     # ------------------------------------------------------------------ modelo
 
@@ -231,6 +233,22 @@ class Motor:
                 pedaco = pedaco * volume
 
             saida.write(np.ascontiguousarray(pedaco))
+        self._ultimo_som = time.perf_counter()
+
+    def _pre_rolar(self, geracao: int) -> None:
+        """Acorda a saída antes da fala, quando ela esteve ociosa.
+
+        As primeiras palavras de uma leitura eram comidas: o dispositivo leva
+        alguns décimos de segundo para começar a soar depois de ocioso, e o
+        áudio escrito nesse intervalo se perde. Um silêncio curto na frente paga
+        essa subida — só quando houve pausa de verdade, nunca entre frases.
+        """
+        segundos = getattr(self.cfg, "silencio_inicial_s", 0.0) or 0.0
+        if segundos <= 0:
+            return
+        ociosa = self._saida is None or (time.perf_counter() - self._ultimo_som) > 0.8
+        if ociosa:
+            self._silencio(segundos, geracao)
 
     def _silencio(self, segundos: float, geracao: int) -> None:
         if segundos <= 0:
@@ -464,6 +482,9 @@ class Motor:
 
         produtor = threading.Thread(target=produzir, name="cv-gera", daemon=True)
         produtor.start()
+
+        # enquanto a primeira frase é gerada, a saída já acorda
+        self._pre_rolar(geracao)
 
         fim_ultimo_som = 0.0
         while True:
